@@ -1,0 +1,9 @@
+{
+  "verified": true,
+  "javascriptSyntaxExit": 0,
+  "browserPlayback": [
+    {"width":1440,"height":900,"observedTime":2.037923,"paused":false,"error":null},
+    {"width":390,"height":844,"observedTime":2.047375,"paused":false,"error":null}
+  ],
+  "method":"Both videos played for two seconds in actual Chromium, without setting currentTime. FFmpeg fully decoded both MP4s without errors."
+}
