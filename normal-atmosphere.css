@@ -1,0 +1,76 @@
+/* normal-atmosphere.css — normal (non-locked) atmosphere surface.
+ *
+ * Gentle, optional layered background gradient motion and the cupped 3D-ish
+ * blossom trailing path. Motion is off by default and never obstructs the
+ * timer or any panel: the atmospheric and flower layers are pointer-events:
+ * none and sit below the app shell.
+ */
+
+/* Optional layered background gradient motion (normal mode only, off by
+ * default; toggled by the Appearance panel). The warm/sage gradient drifts
+ * as a slow background-position shift so the timer and panels stay still. */
+html[data-motion="on"] .room-backdrop:not(.lock-in-mode) {
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  animation: room-glow-drift 34s ease-in-out infinite alternate;
+}
+
+@keyframes room-glow-drift {
+  from { background-position: 0% 50%; }
+  to   { background-position: 100% 50%; }
+}
+
+/* Cupped 3D-ish blossom trailing: a rounded, cup-shaped arc with a gentle
+ * wind sway and a slow tumble. Beat is even and the path is not linear. */
+.flower-layer .flower {
+  animation-timing-function: ease-in-out;
+}
+
+.flower-layer[data-falling="true"] .flower {
+  animation: blossom-trail var(--duration) ease-in-out var(--delay) infinite alternate;
+}
+
+.flower-layer[data-falling="true"][data-kind="moon"] .flower {
+  animation-name: blossom-drift;
+}
+
+.flower-layer[data-falling="true"][data-kind="leaves"] .flower {
+  animation-name: blossom-flutter;
+}
+
+@keyframes blossom-trail {
+  0%   { transform: translate(calc(var(--wind) * 0.5), -10vh) rotate(calc(var(--tumble) * 0.4)) scale(1); }
+  33%  { transform: translate(calc(var(--wind) * 0.8), 4vh) rotate(calc(var(--tumble) * 0.8)) scale(1.09); }
+  66%  { transform: translate(calc(var(--wind) * -0.6), 12vh) rotate(calc(var(--tumble) * 0.6)) scale(1.04); }
+  100% { transform: translate(calc(var(--wind) * 0.7), 22vh) rotate(calc(var(--tumble) * 1)) scale(1); }
+}
+
+@keyframes blossom-drift {
+  0%   { transform: translate(0, var(--rest)) rotate(-8deg) scale(1); }
+  100% { transform: translate(12px, calc(var(--rest) - 30vh)) rotate(16deg) scale(1.08); }
+}
+
+@keyframes blossom-flutter {
+  0%   { transform: translate(-8px, -40px) rotate(-25deg) scale(1); }
+  33%  { transform: translate(10px, 30vh) rotate(110deg) scale(1.06); }
+  66%  { transform: translate(-4px, 65vh) rotate(200deg) scale(1.03); }
+  100% { transform: translate(7px, calc(100vh + 40px)) rotate(330deg) scale(1); }
+}
+
+/* Hidden tab pause (normal view) — the background gradient and blossom
+ * trailing keep sleeping while the tab is not visible. */
+html[data-hidden="true"] .room-backdrop:not(.lock-in-mode) {
+  animation: none;
+  background-position: 0% 50%;
+}
+
+html[data-hidden="true"] .flower-layer .flower {
+  animation-play-state: paused;
+}
+
+/* Reduced motion — the layered background gradient and blossom trailing
+ * stay still. (Also gated globally by @media (prefers-reduced-motion: reduce).) */
+html[data-reduced-motion="true"] .room-backdrop:not(.lock-in-mode) {
+  animation: none;
+  background-size: 100% 100%;
+}
