@@ -1,74 +1,55 @@
-# Study Room
+# Juliette — natural motion v2
 
-A private-first focus workspace with a personal timer, optional shared study rooms, editable planning tools and device-local progress.
+**Standalone visual study, not integrated and not visually accepted.** No production repository files were read or changed. No network assets, providers, credentials, deployment or app snapshots were used. All blossom geometry is newly authored, not the original 24 flat SVGs. This study uses 18 blossoms.
 
-## What works in this source
+## Open / share
 
-- **Solo focus:** adjustable 1–180 minute cycles, pause/resume/reset, completion reflection and local session history.
-- **Party rooms:** explicit creation and joining through a six-character room code or invite link, synchronized room clocks, separate personal clocks, host admission lock/removal, and opt-in intention sharing. Opening an invite or signing in does not join a room or start focus.
-- **Planning without AI:** import text/Markdown notes, derive a checklist from unfinished tasks, edit/reorder steps, use a step as a private intention, and save/resume derived plan copies. Context-only notes receive a labelled review scaffold, not invented completed work. Pasted external plans and generic editable session templates also work offline.
-- **Presentation:** customizable colors, animated decor, reduced-motion support, optional focus sounds, a quieter Lock In view and alternative atmospheres.
-- **Music:** official Spotify/Apple embeds and validated links; optional Spotify account-connected playback has separate configuration and provider requirements. Apple account-connected playback is disabled.
+- `index.html` — complete portable interactive study; open directly in a browser.
+- `preview.html` — review page with desktop/mobile replay controls and still-state comparisons.
+- `desktop-replay.mp4` — 1440×900, approximately 12 seconds.
+- `mobile-replay.mp4` — 390×844, approximately 12 seconds.
+- Matching `.gif` replays are available, but MP4s are smaller and cleaner.
+- `desktop-live.png`, `mobile-live.png`, `viewport-320.png` — inspected actual browser screenshots.
+- `motion-off.png`, `reduced-motion.png` — actual nonmoving compositions.
+- `verification.json`, `video-playback.json` — measured evidence.
 
-## Architecture and privacy
+## What changed visually
 
-React + TypeScript is built by Vite into `dist/`. A Node server serves the built client and Socket.IO room events. Shared room state lives in process memory; there is no persistent room database. Supabase is used for hosted identity and live-session verification, not cloud storage of study plans.
+Compared with the rejected video's actual chronological frames (`rejected-contact.jpg`): its flowers were tiny flat outline marks, substantial opaque app panels concealed the background, and field movement was hard to discern. This study deliberately exposes large surrounding background gaps while keeping only the stationary timer surface protected.
 
-Imported sources and appearance state are in memory. Saved derived plans, reflections, preferences and session records use browser storage, scoped to the signed-in subject in hosted mode. They are **not encrypted or cloud-synced** and may contain imported information. Browser/site-data clearing can remove them. A different account or sign-in session discards unsaved workspace state. The auth SDK also maintains its own auth/PKCE browser storage.
+New flowers have five curved, cupped cream petals built as original 3D surface meshes. Pitch/yaw reveal folded edge/back silhouettes; depth-sorted faces, directional light, darker petal roots and the recessed pollen center create volume. Near/far scale, opacity and slight far-focus blur separate distance. These are software-projected SVG meshes, not flat icons rotating in the screen plane. They remain stylized; close inspection reveals some faceting, not photoreal material simulation.
 
-Typing an intention or importing/building a plan does not publish it to a room. Only explicit sharing sends the intention. Private notes and plan steps are not room broadcasts. Explicit optional local AI requests can send selected text to an operator-configured provider; no personal AI runner or account configuration is distributed here. **Hosted AI is disabled**, even when AI environment variables are supplied.
+A seeded fixed-step simulation integrates coherent spatial wind, changing updrafts, gravity, orientation-dependent drag, inertia and angular torque. Flowers can slow, arc and briefly rise; there are no four path presets, synchronized loops or visible resets. Recycling occurs only beyond generous offscreen margins. Gentle and Lively vary energy; Off and reduced motion retain the scene without scheduling animation. No flags or moving text exist.
 
-## Local setup
+The background itself changes: oversized gold/sage radial fields translate, rotate and breathe at different rates, causing a clearly shifting light field over the 12-second replays. Only the supplied `#ffe6a3` and `#8faa78` endpoints are used in the field. Cream petals and the protected reading surface remain warm. The centered timer is intentional for this focus/operate surface; the design-craft diagnostic found no generic feature-grid, neon-tech, marketing-stat or decorative-card tells.
 
-Use a Node version accepted by `package.json` (Node 24.15.0 or later in the 24.x line is one option), then:
+## Actual checks
 
-```sh
-npm ci
-npm run typecheck
-npm test
-npm run dev
-```
+- No horizontal or vertical document overflow at 320×690, 390×844 or 1440×900.
+- Every button has a 44px minimum height and measured width ≥44px.
+- Protected main text contrast: 11.34:1; muted text: 6.38:1; primary button: 7.97:1. Small text over the two-endpoint field has a conservative endpoint minimum of 4.65:1.
+- Off, emulated reduced motion and a genuinely hidden browser tab each stopped frame advancement and had no scheduled rAF. Stills remained visible.
+- Start counted to 24:59; Pause stayed stable; Reset restored 25:00.
+- Zero browser runtime exceptions; extracted JavaScript passed `node --check`.
+- Both MP4s fully decoded with FFmpeg and played in actual Chromium without errors; video currentTime advanced past 2 seconds without seeking.
 
-The development server prints its loopback address. For the production-style local server:
+### Performance, not a device claim
 
-```sh
-npm run build
-npm start
-```
+The live renderer intentionally targets 30fps. In local headless Chromium with software rendering, the final run measured:
 
-The default port is 4173; `PORT` can override it. Local mode binds only to loopback, uses anonymous demo room identities, and is not a friend-reachable deployment. Local invite links are same-device only. Environment variables must be provided by the shell or hosting dashboard; this application does not automatically load `.env` files.
+| | Desktop 1440×900 | Mobile-sized 390×844 |
+|---|---:|---:|
+| Idle median draw | 10.8ms | 20.8ms |
+| Idle p95 draw | 12.4ms | 26.6ms |
+| Median render interval | 33.3ms | 33.3ms |
+| p95 render interval | 33.4ms | 50.0ms |
 
-## Hosted setup: Render + Supabase
+There are 18 blossoms / 300 surface patches per blossom, in one rAF loop with fixed 1/60-second physics. Mobile-size evidence is desktop browser emulation, **not physical-phone performance**; occasional 50ms intervals occurred. The recordings sample actual browser screenshots at roughly 10fps, preserving their real elapsed timing and encoding at 30fps (duplicate holds, no synthesized animation). These files demonstrate visual movement, not a 30fps capture benchmark.
 
-The supplied Dockerfile and `render.yaml` target one free-plan Render web service, with manual deployment, hosted authentication required and `/healthz` as the process-health endpoint. No live service, account consent or SQL application is established by the source or local tests. A public website can be served from a private repository; visitors do not need repository access.
+## Implementation issue / recovery
 
-1. Create/select the intended Supabase project. Review and, as database owner, apply `docs/sql/studyroom-session-active.sql` in **that project only**. It is an unapplied setup artifact here. Without this RPC the app fails closed rather than trusting a valid-but-revoked token.
-2. Configure email delivery and/or Google sign-in in Supabase. Set the Site URL to the final canonical HTTPS origin and configure its `/auth/confirm` redirect, including the optional validated room query. See `docs/hosted-setup.md` for the email template and verification checklist. Provider secrets belong in provider dashboards, never in the repository or frontend.
-3. Connect this private repository to Render using your own account and deploy the Docker service from the intended commit. The blueprint explicitly selects `plan: free`, one instance and automatic deploys off. Check current platform availability/limits before confirming deployment; do not accept a paid upgrade as a prerequisite.
-4. Set `STUDY_PUBLIC_ORIGIN` to the exact canonical HTTPS origin (no trailing slash), `SUPABASE_URL` to the exact project HTTPS origin, and `SUPABASE_ANON_KEY` to a publishable key or legacy anon key. The blueprint sets `STUDY_DEPLOYMENT_MODE=hosted`, `STUDY_PROXY_POLICY=render` and `PORT=10000`. Never supply a service-role or secret key. The publishable key is intentionally exposed in client configuration.
-5. Verify real email/Google sign-in, expiry/logout/revocation, two independent clients, invite preservation across sign-in and explicit Join room. A healthy `/healthz` alone does **not** establish these features.
+Canvas 2D in the initial harness returned transparent pixels and caused GPU/readback timeouts, so that rendering attempt was discarded. The final implementation projects the same authored petal geometry into SVG paths and uses composited CSS fields; a separate clean Chromium session verified the working result. `verify.py` and `evidence.py` reproduce checks/capture using the locally available Python environment, websockets and FFmpeg. No installed packages were added.
 
-**Ephemeral rooms:** free services can sleep/restart and deployments replace the process. All shared rooms, clocks and connected-music sessions are in memory and disappear on restart; create a new room and reconnect music. Browser-local saved plans are separate and are not a server backup. This single-instance design is not horizontally scalable. Hosted empty rooms expire after five minutes; capacity/rate limits reject excess work.
+## Gate
 
-## Optional music and AI
-
-For Spotify account-connected playback, register the exact canonical origin plus `/api/music/spotify/callback` in your Spotify app and set `SPOTIFY_CLIENT_ID`. For local testing also set `MUSIC_ORIGIN` to the exact printed `http://127.0.0.1:PORT` origin; hosted mode always derives the origin from `STUDY_PUBLIC_ORIGIN`. The implementation uses PKCE, one-use state, bounded in-memory sessions and discards refresh tokens. Playback depends on provider consent, eligible account/Premium, app access, device availability and current provider rules. Reconnect after expiry/restart. Embeds and external links do not prove account-connected playback or audible full-track playback.
-
-`server/ai.ts` retains the local subprocess protocol and synthetic fixture tests. The machine-specific operator implementation is intentionally absent. `npm run start:ai` and `npm run test:operator` report **UNAVAILABLE** and exit 2 until independently supplied local operator files exist. No provider credentials, model access or successful live inference are implied. Hosted mode never runs this operator.
-
-## Tests and evidence boundaries
-
-```sh
-npm run typecheck
-npm run build
-npm test
-npm run test:integration
-npm run test:smoke
-npm run test:operator  # expected unavailable (exit 2) in this publication
-```
-
-The portable default suite retains the original runtime, UI, privacy, origin, auth, socket, deployment, service-worker and synthetic AI tests. Two operator-dependent assertions are preserved under `tests/local-only/`, outside the default glob, and are run only by the explicit availability-gated operator command. They are not replaced with dummy success or counted as passed. See `docs/testing.md` for the exact split and browser prerequisites.
-
-Auth/provider HTTP fixtures and model subprocess fixtures are **synthetic**. They test the actual application boundaries but do not establish genuine email delivery, Google consent, live Supabase session-row behavior, Spotify consent/DRM or real model output. Browser emulation is not physical mobile-device testing. Container execution and live Render deployment require their own verification.
-
-`docs/publication-manifest.json` maps the selected source baseline to candidate hashes and records exclusions; it deliberately omits machine paths and internal reports. It is a limited provenance aid, not a guarantee that no sensitive data exists. Keep all future keys, user data and test outputs out of Git.
+Show the real replays and interactive study for the user's visual decision before any integration. No claim of user approval or production readiness is made. Physical iPhone/Safari testing, app-specific reading-gap composition and integration profiling remain outside this isolated study.
