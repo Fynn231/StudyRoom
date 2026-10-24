@@ -1,0 +1,22 @@
+# Configuration artifact only. No deploy or plan purchase has been performed.
+services:
+  - type: web
+    name: studyroom
+    runtime: docker
+    plan: free
+    autoDeployTrigger: off
+    healthCheckPath: /healthz
+    numInstances: 1
+    envVars:
+      - key: STUDY_DEPLOYMENT_MODE
+        value: hosted
+      - key: STUDY_PROXY_POLICY
+        value: render
+      - key: PORT
+        value: 10000
+      - key: STUDY_PUBLIC_ORIGIN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

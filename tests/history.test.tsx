@@ -1,0 +1,100 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { JSDOM } from 'jsdom';
+import { App } from '../src/App.js';
+const key = 'studyroom.private-history.v1';
+
+test('malformed and unavailable device storage fail safely without importing or overwriting data', async t => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
+  const { render, fireEvent, within, cleanup } = await import('@testing-library/react');
+  t.after(() => { cleanup(); dom.window.close(); });
+  const valid = { id: 'synthetic-safe', openedAt: 1, finishedAt: 2, commitment: 'Synthetic', outcome: 'completed', note: '' };
+  for (const raw of [JSON.stringify({ version: 2, records: [] }), '{broken', 'null', JSON.stringify({ version: 1, records: [null] }), JSON.stringify({ version: 1, records: [{ ...valid, finishedAt: 9e99 }] }), JSON.stringify({ version: 1, records: [{ ...valid, commitment: 'x'.repeat(241) }] }), JSON.stringify({ version: 1, records: Array(51).fill(valid) }), JSON.stringify({ version: 1, records: [valid, valid] }), JSON.stringify({ version: 1, records: [{ ...valid, outcome: 'fake' }] }), JSON.stringify({ version: 1, records: [{ ...valid, extraPrivateData: 'not allowed' }] }), 'x'.repeat(100001)]) {
+    dom.window.localStorage.setItem(key, raw);
+    const view = render(<App />); const q = within(view.container);
+    fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+    fireEvent.click(q.getByLabelText('Store history on this device'));
+    assert.match(q.getByRole('alert').textContent!, /not loaded/i);
+    assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
+    assert.ok(q.getByText('No private sessions yet.'));
+    assert.equal(dom.window.localStorage.getItem(key), raw, 'invalid data must not be silently overwritten');
+    fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
+    assert.equal(dom.window.localStorage.getItem(key), null);
+    view.unmount();
+  }
+  Object.defineProperty(dom.window, 'localStorage', { configurable: true, get() { throw new Error('Synthetic storage blocked'); } });
+  const view = render(<App />); const q = within(view.container);
+  fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  assert.match(q.getByRole('alert').textContent!, /not loaded/i);
+  fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
+  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+  fireEvent.click(q.getByRole('button', { name: 'Finish privately' }));
+  fireEvent.click(q.getByRole('button', { name: 'Save private reflection' }));
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 1);
+});
+
+test('device history is explicit opt-in, reloadable, bounded and erasable without persisting drafts', async t => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
+  const { render, fireEvent, within, cleanup } = await import('@testing-library/react');
+  t.after(() => { cleanup(); dom.window.close(); });
+  const records = Array.from({ length: 50 }, (_, i) => ({ id: `synthetic-${i}`, openedAt: 1, finishedAt: 2 + i, commitment: `Synthetic record ${i}`, outcome: 'partial', note: '' }));
+  dom.window.localStorage.setItem(key, JSON.stringify({ version: 1, records }));
+  let view = render(<App />); let q = within(view.container);
+  fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+  assert.ok(q.getByText('No private sessions yet.'));
+  fireEvent.change(q.getByLabelText('Your session intention'), { target: { value: 'UNSAVED SYNTHETIC DRAFT' } });
+  assert.equal(dom.window.localStorage.getItem(key)!.includes('UNSAVED SYNTHETIC DRAFT'), false);
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 50);
+  fireEvent.click(q.getByRole('button', { name: 'Finish privately' }));
+  fireEvent.click(q.getByRole('button', { name: 'Save private reflection' }));
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 50);
+  const stored = JSON.parse(dom.window.localStorage.getItem(key)!);
+  assert.equal(stored.records.length, 50);
+  assert.equal(stored.records[0].commitment, 'UNSAVED SYNTHETIC DRAFT');
+  view.unmount(); view = render(<App />); q = within(view.container);
+  fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+  assert.ok(q.getByText('No private sessions yet.'), 'reload does not silently opt in');
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 50);
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  assert.equal(dom.window.localStorage.getItem(key), null);
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 50, 'opt-out retains tab memory');
+  fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
+  assert.ok(q.getByText('No private sessions yet.'));
+});
+
+
+test('device write and deletion failures retain usable private memory and report honest status', async t => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
+  const { render, fireEvent, within, cleanup } = await import('@testing-library/react');
+  t.after(() => { cleanup(); dom.window.close(); });
+  const view = render(<App />); const q = within(view.container);
+  fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  const originalSet = dom.window.Storage.prototype.setItem;
+  fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
+  dom.window.Storage.prototype.setItem = () => { throw new Error('Synthetic quota'); };
+  fireEvent.click(q.getByRole('button', { name: 'Finish privately' }));
+  fireEvent.click(q.getByRole('button', { name: 'Save private reflection' }));
+  assert.match(q.getByRole('alert').textContent!, /could not save/i);
+  assert.equal(!!q.getByRole('alert').closest('details'), false, 'storage failures must stay visible even with history collapsed');
+  fireEvent.click(q.getByText('Private history (1)', { selector: 'summary' }));
+  assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 1);
+  assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
+  assert.equal((q.getByRole('button', { name: 'Finish privately' }) as HTMLButtonElement).disabled, true);
+  dom.window.Storage.prototype.setItem = originalSet;
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  dom.window.Storage.prototype.removeItem = () => { throw new Error('Synthetic deletion blocked'); };
+  fireEvent.click(q.getByLabelText('Store history on this device'));
+  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+  assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
+  fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
+  assert.ok(q.getByText('No private sessions yet.'));
+  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+});

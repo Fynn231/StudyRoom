@@ -1,0 +1,32 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { JSDOM } from 'jsdom';
+import { App } from '../src/App.js';
+
+test('actual File import renders escaped context and explicit replacement without clock changes; clear removes sources', async t => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, FileReader: dom.window.FileReader, ArrayBuffer: dom.window.ArrayBuffer, IS_REACT_ACT_ENVIRONMENT: true });
+  const { render, fireEvent, waitFor, within, cleanup } = await import('@testing-library/react');
+  t.after(() => { cleanup(); dom.window.close(); });
+  const view = render(<App />); const q = within(view.container);
+  fireEvent.click(q.getByText('Goals / notes', { selector: 'summary' }));
+  const file = new dom.window.File(['# Direction\n<img src="https://invalid.example/test" onerror="alert(1)">\n- [ ] Plant fictional stars\n## Earlier\n- [ ] Old stars'], 'fiction.md', { type: 'text/markdown' });
+  fireEvent.change(q.getByLabelText('Choose Markdown notes'), { target: { files: [file] } });
+  await waitFor(() => assert.ok(q.getByText('Plant fictional stars')));
+  assert.ok(q.getByText(/fiction.md · Direction · line 3/));
+  assert.equal(view.container.querySelectorAll('img, script, a[href*="invalid.example"]').length, 0);
+  assert.equal(q.queryByText('Old stars'), null);
+  fireEvent.change(q.getByLabelText('Your session intention'), { target: { value: 'Existing promise' } });
+  assert.equal(q.queryByRole('button', { name: 'Use as private intention' }), null);
+  fireEvent.click(q.getByRole('button', { name: 'Replace private intention' }));
+  assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value, 'Plant fictional stars');
+  assert.equal(q.getByRole('timer').textContent, '25:00');
+  assert.ok(q.getByRole('button', { name: 'Start focus' }));
+  assert.equal(dom.window.localStorage.length, 0);
+  fireEvent.click(q.getByRole('button', { name: 'Clear imported notes' }));
+  assert.equal(view.container.querySelectorAll('.goal-source').length, 0, 'clear removes imported articles, not the chosen textarea value');
+  assert.equal(view.container.textContent!.includes('fiction.md'), false);
+  assert.equal((q.getByLabelText('Choose Markdown notes') as HTMLInputElement).value, '');
+  assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value, 'Plant fictional stars', 'clear does not overwrite a chosen intention');
+});

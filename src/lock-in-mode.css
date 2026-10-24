@@ -1,0 +1,60 @@
+/* Secret atmosphere: only background light moves, never text or the provider player. */
+button.wordmark { padding: 0; border: 0; background: transparent; font-weight: 400; min-height: 46px; }
+button.wordmark:hover:not(:disabled) { background: transparent; }
+.spotify-player { margin-top: 18px; min-width: 0; }
+.spotify-player iframe { display: block; border: 0; border-radius: 12px; max-width: 100%; background: #121212; }
+.music-panel > button { margin-top: 12px; }
+
+.room-backdrop.lock-in-mode {
+  --paper: #101317; --ink: #d6dcdf; --muted: #b8c2c8;
+  --green: var(--locked-accent); --line: #515c63; --accent: var(--locked-accent);
+  color: var(--ink); color-scheme: dark;
+  background: var(--locked-background) !important;
+  background-attachment: fixed;
+  padding-bottom: 100px;
+}
+
+.lock-in-mode .flower-layer { display: none; }
+.lock-in-mode .app-shell { filter: none; background: transparent; }
+.lock-in-mode :is(h1,h2,h3,.wordmark,.timer,.timer-caption) { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace; }
+.lock-in-mode h1 { letter-spacing: -.055em; font-weight: 600; }
+.lock-in-mode h2 { font-size: 1.35rem; font-weight: 500; }
+.lock-in-mode .timer { color: var(--locked-timer); font-weight: 350; letter-spacing: -.07em; text-shadow: 0 0 36px #ffffff18; }
+.lock-in-mode :is(.timer-caption,.timer-controls label,.timer-area .eyebrow,.entry-clock,.entry-clock span,.duration-error,.hex-error,.next-step,.invite strong,.avatar) { color: var(--muted); }
+.lock-in-mode :is(.focus-surface,.intention-surface,.people-surface,.optional-panel,.reflection-form,.goal-source,.roadmap-step,.help-panel) { background: var(--paper); border-color: var(--line); }
+.lock-in-mode .focus-surface { border-left: 3px solid var(--accent); border-radius: 4px; }
+.lock-in-mode :is(.masthead,.page-heading,.session-tools,.demo-note,footer) { border-radius: 4px; }
+.lock-in-mode :is(input,textarea,select) { background: #171b20; color: var(--ink); border-color: #767f86; }
+.lock-in-mode :is(input,textarea)::placeholder { color: #b0b0b0; opacity: 1; }
+.lock-in-mode :is(button,.launch-link) { color: var(--ink); background: #191e23; border-color: #767f86; transition: none; }
+.lock-in-mode button:hover:not(:disabled), .lock-in-mode .launch-link:hover { background: #363636; }
+.lock-in-mode button.primary { background: var(--accent); color: #080b0d; border-color: var(--accent); }
+.lock-in-mode button.primary:hover:not(:disabled) { background: #d5d5d5; }
+.lock-in-mode button:disabled { opacity: 1; color: #b8c2c8; background: #272d32; border-color: #515c63; }
+.lock-in-mode button.wordmark { background: transparent; border: 0; }
+.lock-in-mode :is(.mode-switch,.clock-choice,.appearance-presets) button[aria-pressed="true"] { background: #393939; color: #fafafa; border-color: #a0a0a0; }
+.lock-in-mode :is(.timer-controls,.roadmap-panel,.step-edit) { border-color: var(--line); }
+.lock-in-mode :is(.avatar,.roadmap-scope,.error) { background: #262626; color: #efefef; border-color: #aaa; }
+.lock-in-mode .connection i, .lock-in-mode .connection i.live { background: #bcbcbc; }
+.lock-in-mode .preset-swatch, .lock-in-mode input[type="color"] { filter: grayscale(1); }
+.lock-in-mode :focus-visible { outline-color: var(--locked-timer); }
+.lock-in-panel {
+  position: fixed; bottom: 16px; right: max(20px, calc((100vw - 1184px) / 2)); z-index: 5;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  max-width: calc(100% - 40px); padding: 12px 16px; border: 1px solid #8c8c8c;
+  border-radius: 4px; background: #090909; color: #f5f5f5; box-shadow: 0 8px 30px #0008;
+}
+.lock-in-panel .eyebrow { margin: 0 0 4px; font-size: .62rem; }
+.lock-in-panel strong { font-family: ui-monospace, monospace; font-size: .85rem; font-weight: 400; }
+.lock-in-panel button { flex-shrink: 0; min-height: 46px; }
+@media (max-width: 640px) {
+  .lock-in-panel { left: 12px; right: 12px; bottom: 12px; max-width: none; gap: 12px; padding: 10px; }
+  .lock-in-panel strong { display: none; }
+  .lock-in-panel button { font-size: .8rem; padding-inline: 12px; }
+  .lock-in-mode .timer { font-size: clamp(4rem, 20vw, 7rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lock-in-mode, .lock-in-mode *, .lock-in-mode::before { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+/* Backdrop-level copy returns to the light lock-in palette (dark backdrop). */
+.lock-in-mode :is(.demo-note, footer) { color: var(--muted); }

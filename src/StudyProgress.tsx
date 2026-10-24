@@ -1,0 +1,53 @@
+import { usePrivateStorage, usePrivateKey } from './privateStorage.js';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { parseSavedPlans, snapshotPlan, STUDY_PLANS_KEY, writeSavedPlans, type PlanDraft, type SavedPlan } from './savedStudyStore.js';
+import { PlanStepEditor, validPlanSteps } from './PlanStepEditor.js';
+const SaveContext = createContext<((draft: PlanDraft) => boolean) | null>(null);
+export function SaveStudyPlan({ draft }: { draft: PlanDraft }) {
+ const save = useContext(SaveContext), id = useId(); const [title,setTitle]=useState(draft.title), [saved,setSaved]=useState(false);
+ if(!save || !draft.steps.length) return null;
+ return <div className="save-study-plan"><label htmlFor={`${id}-title`}>Saved copy title<input id={`${id}-title`} value={title} maxLength={240} onChange={e=>setTitle(e.target.value)} /></label><p className="quiet-note">Save a separate reviewed copy on this device. It may contain document-derived information. Source checklist edits and later AI refinements do not change that copy; resume it in Saved study plans to keep its completion updated.</p><button disabled={!title.trim() || !validPlanSteps(draft.steps)} onClick={()=>{if(save({...draft,title:title.trim()})) setSaved(true);}}>{saved ? 'Save another copy on this device' : 'Save on this device'}</button>{saved && <p role="status">Copy saved. Resume it below to track ongoing completion. This source checklist stays separate.</p>}</div>;
+}
+import { useCopy } from './lockInCopy.js';
+
+export function StudyProgress({ children, commitment, onChoose }: { children: ReactNode; commitment: string; onChoose: (s:string)=>void }) {
+ const storage = usePrivateStorage();
+ const planStorageKey = usePrivateKey(STUDY_PLANS_KEY);
+ const c = useCopy();
+ const [plans,setPlans]=useState<SavedPlan[]>([]), [active,setActive]=useState<SavedPlan|null>(null), [error,setError]=useState(''), [message,setMessage]=useState('');
+ const [editing,setEditing]=useState<SavedPlan|null>(null);
+ useEffect(()=>{setEditing(null);},[active?.id]);
+ const raw=useRef<string|null>(null), loaded=useRef(false), blocked=useRef(false);
+ const resumedHeading=useRef<HTMLHeadingElement>(null);
+ useEffect(()=>{if(active){resumedHeading.current?.focus({preventScroll:true});resumedHeading.current?.scrollIntoView?.({block:'start'});}},[active?.id]);
+ function read(external=false): SavedPlan[] | null {
+  try { const value=storage.getItem(STUDY_PLANS_KEY); const store=parseSavedPlans(value); raw.current=value; loaded.current=true; blocked.current=false; setPlans(store.plans);setError('');setMessage(external?'Saved plans changed in another tab. Resume again; unsaved in-tab changes were not applied.':'');return store.plans; }
+  catch(e) { setPlans([]);setActive(null);blocked.current=true; loaded.current=true;setError(e instanceof Error?e.message:'Saved plans unavailable.');setMessage('');return null; }
+ }
+ useEffect(()=>{const listener=(e:StorageEvent)=>{if(loaded.current && (e.key===planStorageKey || e.key===null)){setActive(null);read(true);}};window.addEventListener('storage',listener);return()=>window.removeEventListener('storage',listener);},[]);
+ function commit(next:SavedPlan[], success:string) {
+  try { if(!loaded.current || blocked.current) throw Error('Saved plans are unavailable. Nothing was overwritten. Reopen the library or deliberately clear saved plans.'); raw.current=writeSavedPlans(storage,raw.current,next);setPlans(next);setError('');setMessage(success);return true; }
+  catch(e) {setMessage('');setError(`Could not update saved plans. ${e instanceof Error?e.message:'Device storage is unavailable or full.'} No success is assumed; reopen the library to check.`);return false;}
+ }
+ function save(draft:PlanDraft) {try { const existing=loaded.current?plans:read();if(!existing)return false;const plan=snapshotPlan(draft);return commit([...existing,plan],'Plan saved on this device.'); }catch(e){setMessage('');setError(`Could not save this plan. ${e instanceof Error?e.message:'Review plan limits.'}`);return false;} }
+ function update(next:SavedPlan) {
+  if(next.keepUpdated || active?.keepUpdated) {const stamped={...next,updatedAt:Math.max(Date.now(),next.updatedAt)};if(commit(plans.map(p=>p.id===next.id?stamped:p),next.keepUpdated?'Saved completion updated.':'Automatic completion updates stopped for this plan.'))setActive(stamped);}
+  else {setActive(next);setMessage('Completion changed in this tab only. Keeping updates is off.');}
+ }
+ function clear() {
+  if(!window.confirm('Delete all saved study plans on this browser origin? Imported notes, intentions and reflection history are not erased.'))return;
+  try { // Explicit destructive recovery is allowed even when the original is unreadable.
+   storage.removeItem(STUDY_PLANS_KEY);if(storage.getItem(STUDY_PLANS_KEY)!==null)throw Error('Deletion was not confirmed.');raw.current=null;blocked.current=false;loaded.current=true;setPlans([]);setActive(null);setError('');setMessage('Saved study plans deleted. Other device data was not changed.');
+  }catch{setMessage('');setError('Could not delete saved plans. Device storage is unavailable; deletion is not confirmed.');}
+ }
+ return <SaveContext.Provider value={save}>{children}{error && <p role="alert" className="error saved-plans-error">{error}</p>}<details className="optional-panel saved-study-plans" onToggle={e=>{if(e.currentTarget.open && !loaded.current)read();}}><summary onClick={()=>{if(!loaded.current)read();}}>{c('plansSummary', 'Saved study plans')}</summary>
+  <p className="quiet-note">Private copies for future visits in this browser on this device and site address only. No account or cloud sync. No saving until you explicitly choose Save on this device for a plan.</p>
+  <details><summary>What is kept?</summary><p className="quiet-note">Reviewed plan titles, objectives, step text and instructions, rough minutes, completion, random local IDs and timestamps. Derived plan content can contain document-derived information. Original files, raw notes, source excerpts, filenames / paths / provenance, citation maps, questions and answers, tokens and room identities are not serialized. Saved content is not encrypted by this app; other people with access to this browser may read it. Browser clearing or private browsing may remove it.</p><p className="quiet-note">Saving creates an independent snapshot, not a link to the imported checklist. Resume that saved copy to work on it. Keeping completion updated starts enabled for that copy only and can be turned off. Source edits / generation / refinement never overwrite saved copies. Clear or reselect imports removes current source plans, not explicitly saved copies. No notes or pending model requests are restored. Saving, resuming and completion never call a model or publish to a room.</p><p className="quiet-note">Up to 20 plans, 12 steps each. Titles / step text: 240 characters; instructions: 2,000; up to 8 objectives of 600 characters. Oversized copies are rejected, not silently clipped. Use one editing tab at a time: other-tab changes close the resumed view, and stale writes are rejected where detected. Simultaneous browser writes are not merged.</p></details>
+  {message && <p role="status">{message}</p>}
+  <button onClick={()=>{setActive(null);read();}}>Reload saved library</button>
+  {!plans.length && !error && <p>No saved study plans yet.</p>}
+  <ul className="saved-plan-list">{plans.map(p=><li key={p.id}><h3>{p.title}</h3><p>{p.kind==='ai'?'AI-derived copy':'Deterministic copy'} · {p.steps.filter(s=>s.done).length}/{p.steps.length} done · saved {new Date(p.createdAt).toLocaleString()}</p><div className="intention-actions"><button onClick={()=>{setActive({...p,steps:p.steps.map(s=>({...s}))});setMessage('Saved copy resumed. Original sources are not loaded.');}}>Resume plan</button><button onClick={()=>{if(commit(plans.filter(x=>x.id!==p.id),'Saved plan deleted.')){if(active?.id===p.id)setActive(null);}}}>Delete saved plan</button></div><small>Local ID: {p.id}</small></li>)}</ul>
+  {(plans.length>0 || error) && <button onClick={clear}>Clear saved study plans</button>}
+  {active && <section className="resumed-study-plan" aria-label="Resumed saved study plan"><h2 ref={resumedHeading} tabIndex={-1} data-resumed-heading="true">{active.title}</h2><p className="quiet-note">Original source documents are not loaded or stored. Source references were not saved; this is a reviewed derived copy, not currently verified against live sources.</p><label className="storage-option"><input type="checkbox" checked={active.keepUpdated} disabled={!!editing} onChange={e=>update({...active,keepUpdated:e.target.checked})} />Keep completion updated on this device for this plan</label><p className="quiet-note">When off, done / undo stays in this tab only. Turning it on explicitly saves this copy's current completion. It does not affect any other plan.</p><p role="status">{active.steps.filter(s=>s.done).length}/{active.steps.length} {active.keepUpdated?'saved steps done':'steps done in this tab only'}</p><ul>{active.objectives.map((o,i)=><li key={i}>{o}</li>)}</ul>{editing ? <div className="saved-plan-editor"><p className="quiet-note">Editing this saved copy only. Nothing is stored until Save plan edits on this device, even when completion updates are off. Cancel discards these edits.</p><PlanStepEditor steps={editing.steps} onChange={steps=>setEditing({...editing,steps})}/><div className="intention-actions"><button disabled={!validPlanSteps(editing.steps)} onClick={()=>{const next={...editing,updatedAt:Math.max(Date.now(),editing.updatedAt)};if(commit(plans.map(p=>p.id===next.id?next:p),'Saved plan edits updated on this device.')){setActive(next);setEditing(null);}}}>Save plan edits on this device</button><button onClick={()=>setEditing(null)}>Cancel plan edits</button></div></div> : <><button onClick={()=>setEditing({...active,steps:active.steps.map(s=>({...s}))})}>Edit saved plan</button><ol className="roadmap-steps">{active.steps.map(s=><li className="roadmap-step" key={s.id}><label className="step-check"><input type="checkbox" checked={s.done} onChange={()=>update({...active,steps:active.steps.map(x=>x.id===s.id?{...x,done:!x.done}:x)})} /><span>{s.title}</span></label>{s.instructions && <p>{s.instructions}</p>}{s.minutes!==null && <p className="quiet-note">About {s.minutes} rough minutes</p>}<button disabled={s.title.length>240} onClick={()=>onChoose(s.title)}>{commitment.trim()?'Replace private intention with saved step':'Use saved step as private intention'}</button></li>)}</ol></>}<button onClick={()=>setActive(null)}>Close resumed plan</button></section>}
+ </details></SaveContext.Provider>;
+}

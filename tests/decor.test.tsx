@@ -1,0 +1,51 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { JSDOM } from 'jsdom';
+import { App } from '../src/App.js';
+
+for (const [theme, kind, toggleName] of [['Moon Garden', 'moon', 'Drifting moonlight'], ['Autumn Letters', 'leaves', 'Falling leaves']]) {
+  test(`${theme} has original scattered art and opt-in motion without changing private state`, async t => {
+    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+    Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
+    const { render, fireEvent, within, cleanup } = await import('@testing-library/react');
+    t.after(() => { cleanup(); dom.window.close(); });
+    const view = render(<App />), q = within(view.container);
+    const music = view.container.querySelector('.music-panel');
+    fireEvent.click(q.getByText('Music', { selector: 'summary' }));
+    fireEvent.change(q.getByLabelText('Spotify link'), { target: { value: 'https://open.spotify.com/playlist/0123456789ABCDEFGHIJKL' } });
+    fireEvent.click(q.getByRole('button', { name: 'Select music link' }));
+    const link = q.getByRole('link', { name: 'Open in Spotify (new tab)' });
+    const timer = q.getByRole('timer'), draft = q.getByLabelText('Your session intention');
+    fireEvent.change(draft, { target: { value: 'SYNTHETIC DECOR DRAFT' } });
+    fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
+    fireEvent.click(q.getByText('Appearance', { selector: 'summary' }));
+    fireEvent.click(q.getByRole('button', { name: theme }));
+    const layer = view.container.querySelector<HTMLElement>('.flower-layer')!;
+    assert.equal(layer.dataset.kind, kind);
+    assert.equal(layer.dataset.falling, 'false');
+    assert.equal(layer.getAttribute('aria-hidden'), 'true');
+    assert.equal(layer.querySelectorAll('svg').length, 24);
+    assert.ok(layer.querySelectorAll('path').length >= 12, 'original inline paths, not flower art');
+    assert.equal(layer.querySelectorAll('image,img,iframe,audio,video,button,input,a').length, 0);
+    const toggle = q.getByLabelText(toggleName) as HTMLInputElement;
+    assert.equal(toggle.checked, false);
+    fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'true');
+    fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'false');
+    fireEvent.click(toggle);
+    fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
+    assert.equal(layer.dataset.kind, 'flowers');
+    assert.equal(layer.dataset.falling, 'false');
+    fireEvent.click(q.getByRole('button', { name: theme }));
+    assert.equal((q.getByLabelText(toggleName) as HTMLInputElement).checked, false);
+    assert.equal(q.getByRole('timer'), timer);
+    assert.equal(q.getByLabelText('Your session intention'), draft);
+    assert.equal((draft as HTMLTextAreaElement).value, 'SYNTHETIC DECOR DRAFT');
+    assert.ok(q.getByRole('button', { name: 'Pause focus' }));
+    assert.equal(view.container.querySelector('.music-panel'), music);
+    assert.equal(q.getByRole('link', { name: 'Open in Spotify (new tab)' }), link);
+    assert.equal(dom.window.localStorage.length, 0);
+    fireEvent.click(q.getByRole('button', { name: 'Reset appearance to white and sage' }));
+    assert.equal(view.container.querySelector('.flower-layer'), null);
+  });
+}

@@ -1,0 +1,19 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!vite.config.ts
+!index.html
+!src/
+!src/**
+!public/
+!public/**
+!server/
+!server/*.ts
+# Explicit excludes also protect against future allowlist expansions.
+**/.env*
+**/*credential*
+**/*secret*
+**/*.pem
+**/*.key
+**/.git

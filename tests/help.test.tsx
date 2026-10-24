@@ -1,0 +1,36 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { JSDOM } from 'jsdom';
+import { App } from '../src/App.js';
+
+test('one collapsed How to use entry precedes the focus surface and explains deliberate actions without side effects', async t => {
+  const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, FileReader: dom.window.FileReader, ArrayBuffer: dom.window.ArrayBuffer, IS_REACT_ACT_ENVIRONMENT: true });
+  const { render, fireEvent, within, cleanup, waitFor } = await import('@testing-library/react');
+  t.after(() => { cleanup(); dom.window.close(); });
+  const view = render(<App />), q = within(view.container);
+  const summary = q.getByText('How to use', { selector: 'summary' });
+  const help = summary.closest('details')!;
+  assert.equal(view.container.querySelectorAll('.help-panel').length, 1);
+  assert.equal(help.open, false);
+  assert.equal(help.parentElement?.tagName, 'MAIN');
+  assert.ok(help.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.equal(help.querySelectorAll('details').length, 0);
+  assert.equal(view.container.querySelector('a[href="#help-setup"]'), null);
+  fireEvent.click(summary);
+  assert.equal(help.open, true);
+  for (const text of ['Build session roadmap', 'Choose excerpts for AI', 'Generate AI study plan', 'Use this step as private intention', 'Start focus', 'Save on this device', 'Resume plan']) assert.ok(help.textContent?.includes(text), text);
+  for (const text of ['tab memory', 'Generate / Refine', 'selected excerpts', 'answers', 'localStorage', 'not encrypted', 'same browser', 'site address', 'Saved copy title', 'not a generation prompt', 'Enter or Space']) assert.ok(help.textContent?.includes(text), text);
+  assert.ok(help.textContent?.includes('Typing an intention does not build a plan, start the timer or share it'));
+  for (const text of ['Shift+Enter', 'Plan session', 'Benchmarks', 'Time allocation', 'Skip', 'Edit saved plan']) assert.ok(help.textContent?.includes(text),text);
+  assert.equal(help.textContent?.includes('Enter in an intention adds a line'),false);
+  assert.equal(q.getByRole('timer').textContent, '25:00');
+  assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value, '');
+  assert.equal(dom.window.localStorage.length, 0);
+  fireEvent.click(summary); assert.equal(help.open, false);
+  fireEvent.click(q.getByText('Goals / notes', { selector: 'summary' }));
+  assert.equal(view.container.querySelector('.goal-panel .help-panel'), null);
+  fireEvent.change(q.getByLabelText('Choose Markdown notes'), { target: { files: [new dom.window.File(['bad'], 'not-markdown.txt')] } });
+  await waitFor(() => assert.equal(q.getAllByRole('alert').length, 1, 'one import error, not duplicate announcements'));
+});

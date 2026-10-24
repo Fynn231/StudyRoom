@@ -1,0 +1,41 @@
+{
+  "name": "study-room-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "tsx server/dev.ts",
+    "start": "tsx server/start.ts",
+    "start:ai": "node --import tsx tests/local-only/start-ai.mjs",
+    "pretest": "npm run build",
+    "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts tests/*.test.tsx",
+    "pretest:integration": "npm run build",
+    "test:integration": "tsx --test --test-concurrency=1 tests/*.test.ts tests/ui.test.tsx tests/party-private.test.tsx tests/goal-notes-privacy.test.tsx tests/appearance.test.tsx tests/appearance-privacy.test.tsx tests/juliette.test.tsx tests/ai-ui.test.tsx tests/study-progress.test.tsx tests/study-progress-storage.test.tsx",
+    "pretest:smoke": "npm run build",
+    "test:smoke": "tsx --test --test-concurrency=1 tests/startup.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "test:operator": "node tests/local-only/run.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

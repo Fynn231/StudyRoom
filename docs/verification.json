@@ -1,0 +1,153 @@
+{
+  "status": "portable-gates-passed; private-operator-explicitly-unavailable",
+  "gitWhitespaceCheck": {
+    "exit": 2,
+    "baselineOnly": true,
+    "path": "src/protocol.ts",
+    "line": 3,
+    "reason": "One pre-existing trailing space is retained to preserve exact runtime source bytes; no new whitespace issues."
+  },
+  "commands": {
+    "npm-ci-retry": {
+      "command": [
+        "npm",
+        "ci",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--prefer-offline"
+      ],
+      "exit": 0,
+      "durationSeconds": 1.3
+    },
+    "typecheck": {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exit": 0,
+      "durationSeconds": 0.91
+    },
+    "build": {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exit": 0,
+      "durationSeconds": 1.78
+    },
+    "test": {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exit": 0,
+      "durationSeconds": 56.44,
+      "tests": {
+        "tests": 152,
+        "pass": 152,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "integration": {
+      "command": [
+        "npm",
+        "run",
+        "test:integration"
+      ],
+      "exit": 0,
+      "durationSeconds": 29.55,
+      "tests": {
+        "tests": 88,
+        "pass": 88,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "smoke": {
+      "command": [
+        "npm",
+        "run",
+        "test:smoke"
+      ],
+      "exit": 0,
+      "durationSeconds": 2.22,
+      "tests": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "operator-unavailable": {
+      "command": [
+        "npm",
+        "run",
+        "test:operator"
+      ],
+      "exit": 2,
+      "durationSeconds": 0.25
+    },
+    "start-ai-unavailable": {
+      "command": [
+        "npm",
+        "run",
+        "start:ai"
+      ],
+      "exit": 2,
+      "durationSeconds": 0.24
+    },
+    "production-ci": {
+      "command": [
+        "npm",
+        "ci",
+        "--omit=dev",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund",
+        "--prefer-offline"
+      ],
+      "exit": 0,
+      "durationSeconds": 0.85
+    },
+    "production-probe": {
+      "command": [
+        "node",
+        "<external-verification-script>"
+      ],
+      "exit": 0,
+      "durationSeconds": 1.77
+    }
+  },
+  "mjsSyntax": {
+    "files": 20,
+    "failures": 0
+  },
+  "runtimeProbe": {
+    "ok": true,
+    "productionDependenciesOnly": true,
+    "builtClient": true,
+    "hostedStartup": true,
+    "anonymousProtectedRequestsDenied": true,
+    "canonicalHostAndOriginEnforced": true,
+    "externalProviderCalls": false,
+    "syntheticConfigurationOnly": true,
+    "containerExecuted": false
+  },
+  "limits": [
+    "No Docker executable available; container image was not built or run. Production-only dependency layout was actually installed and exercised on the host.",
+    "No public deployment, real provider auth, remote SQL execution, consent or live model calls were performed.",
+    "Optional browser scripts were syntax-checked, not executed for this candidate; default UI tests use jsdom.",
+    "Vite reports an existing minified chunk above 500 kB.",
+    "Initial dependency-install attempt failed because npm disallowed using one config path for both user/global config; corrected invocation passed."
+  ]
+}
