@@ -18,7 +18,7 @@ h1, h2, .wordmark { font-family: Georgia, 'Times New Roman', serif; font-weight:
 h1 { font-size: clamp(2rem, 3.8vw, 3.1rem); line-height: 1.15; letter-spacing: -.035em; margin-bottom: 0; }
 h2 { font-size: 1.65rem; line-height: 1.25; }
 p { line-height: 1.65; }
-.room-backdrop { min-height: 100vh; background: linear-gradient(to bottom right, #ffffff 0%, #80a879 100%); display: flow-root; }
+.room-backdrop { min-height: 100vh; display: flow-root; background: linear-gradient(to bottom right, #ffffff 0%, #80a879 100%); position: relative; isolation: isolate; }
 .app-shell { max-width: 1280px; padding: 0 48px; margin: auto; }
 .masthead { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 96px; border-bottom: 1px solid var(--line); }
 .wordmark { font-size: 1.7rem; text-decoration: none; white-space: nowrap; letter-spacing: -.05em; }
@@ -337,3 +337,9 @@ footer { margin-bottom: 24px; }
 .auth-panel form { display: grid; gap: .75rem; margin-block: 1rem; }
 .auth-panel label { display: grid; gap: .4rem; }
 .auth-status { display: flex; align-items: center; justify-content: flex-end; gap: .75rem; padding: .5rem 1rem; }
+
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}

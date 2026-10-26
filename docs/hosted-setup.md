@@ -15,6 +15,20 @@ This is setup guidance, not evidence of a deployed integration. No remote SQL or
 
 The server rejects incomplete hosted configuration before listening. Host and Origin must match the configured canonical origin. Forwarded headers cannot broaden trust. Do not expose local mode by changing its bind address to bypass authentication.
 
+## First deploy without guessing the assigned hostname
+
+For a dashboard-created Docker web service, Render provides `RENDER_EXTERNAL_URL` with the actual assigned HTTPS `onrender.com` URL. The Advanced **Docker Command** field can override the image's CMD. Use:
+
+```sh
+sh -c 'export STUDY_PUBLIC_ORIGIN="$RENDER_EXTERNAL_URL"; exec node --import tsx server/start.ts'
+```
+
+Keep `STUDY_DEPLOYMENT_MODE=hosted`, `STUDY_PROXY_POLICY=render`, the intended `SUPABASE_URL` and publishable `SUPABASE_ANON_KEY`, and the free single-instance service. The shell exports the exact platform URL before the unchanged server validates configuration. No wildcard origin or anonymous-hosted fallback is introduced. An empty/malformed platform URL fails startup. Do not put `$RENDER_EXTERNAL_URL` literally into the environment-variable value and assume recursive expansion.
+
+This command is the tested dashboard path, not a change to `render.yaml`: a Blueprint still declares `STUDY_PUBLIC_ORIGIN` as a user-supplied setting. For a later custom domain, use the explicit canonical origin instead and update provider redirects. The override deliberately chooses the platform hostname, so remove/update it before switching canonical domains.
+
+Controlling official references: `https://render.com/docs/environment-variables` (default environment variables, `RENDER_EXTERNAL_URL`) and `https://render.com/docs/docker` (Advanced Docker Command override and shell commands). Read on October 26, 2026. This path was exercised on the host with synthetic environment values and production-only copied dependencies; no Render deployment or Docker container execution is implied.
+
 ## Supabase setup
 
 1. Review `sql/studyroom-session-active.sql`. As the intended project's database owner, apply it only after confirming the project. This security-definer function has an empty search path, no arguments and fully qualified objects. Only authenticated callers may execute it; it returns a boolean for the verified caller's own user/session row and expiration, not arbitrary session information.

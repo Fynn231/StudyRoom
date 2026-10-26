@@ -25,17 +25,41 @@ for (const [theme, kind, toggleName] of [['Moon Garden', 'moon', 'Drifting moonl
     assert.equal(layer.dataset.kind, kind);
     assert.equal(layer.dataset.falling, 'false');
     assert.equal(layer.getAttribute('aria-hidden'), 'true');
-    assert.equal(layer.querySelectorAll('svg').length, 24);
+    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48, 'preserve approved direct decorations');
+    assert.equal(layer.querySelectorAll('svg.flower .moon-stars, svg.flower svg.star').length, 0, 'never nest a starfield inside a decoration SVG');
+    assert.equal(layer.querySelectorAll('.moon-stars').length, kind === 'moon' ? 1 : 0);
+    assert.equal(layer.querySelectorAll(':scope > .moon-stars > svg.star').length, kind === 'moon' ? 24 : 0, 'one bounded sibling starfield only for Moon');
+    assert.equal(layer.querySelectorAll('svg').length, kind === 'moon' ? 72 : 48);
+    if (kind === 'moon') {
+      const starfield = layer.querySelector<HTMLElement>(':scope > .moon-stars')!;
+      assert.equal(starfield.style.position, 'absolute');
+      assert.equal(starfield.style.inset, '0px');
+      assert.equal(starfield.style.overflow, 'hidden');
+      for (const star of starfield.querySelectorAll<SVGElement>('svg.star')) {
+        assert.equal(star.namespaceURI, 'http://www.w3.org/2000/svg');
+        assert.equal(star.getAttribute('viewBox'), '-1.2 -1.2 2.4 2.4', 'contain the existing centered star path including stroke');
+        assert.equal(star.style.position, 'absolute');
+        assert.equal(star.style.width, 'var(--s)');
+        assert.equal(star.style.height, 'var(--s)');
+        assert.ok(parseFloat(star.style.getPropertyValue('--s')) > 0);
+        assert.ok(star.querySelector('path')?.getAttribute('d'));
+      }
+    }
     assert.ok(layer.querySelectorAll('path').length >= 12, 'original inline paths, not flower art');
     assert.equal(layer.querySelectorAll('image,img,iframe,audio,video,button,input,a').length, 0);
     const toggle = q.getByLabelText(toggleName) as HTMLInputElement;
     assert.equal(toggle.checked, false);
     fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'true');
+    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48);
+    assert.equal(layer.querySelectorAll('.moon-stars').length, kind === 'moon' ? 1 : 0, 'motion never multiplies the starfield');
+    assert.equal(layer.querySelectorAll('svg.flower .moon-stars, svg.flower svg.star').length, 0);
     fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'false');
     fireEvent.click(toggle);
     fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
     assert.equal(layer.dataset.kind, 'flowers');
     assert.equal(layer.dataset.falling, 'false');
+    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48);
+    assert.equal(layer.querySelectorAll('.moon-stars, svg.star').length, 0, 'leaving Moon removes its entire starfield');
     fireEvent.click(q.getByRole('button', { name: theme }));
     assert.equal((q.getByLabelText(toggleName) as HTMLInputElement).checked, false);
     assert.equal(q.getByRole('timer'), timer);

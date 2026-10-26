@@ -1,4 +1,5 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useCopy } from './lockInCopy.js';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { customGradient } from './appearanceColors.js';
 
 export const PRESETS = [
@@ -20,17 +21,21 @@ const EFFECT_THEMES: Record<string, { still: FlowerEffect; moving: FlowerEffect;
   'Moon Garden': { still: 'moon-static', moving: 'moon-falling', label: 'Drifting moonlight' },
   'Autumn Letters': { still: 'leaves-static', moving: 'leaves-falling', label: 'Falling leaves' },
 };
-import { useCopy } from './lockInCopy.js';
 
-export function Appearance({ onChange, onEffectChange, lockedPicker }: { onChange: (background: string | undefined) => void; onEffectChange: (effect: FlowerEffect) => void; lockedPicker?: ReactNode }) {
+export function Appearance({ onChange, onEffectChange, onMotionChange, lockedPicker }: { onChange: (background: string | undefined) => void; onEffectChange: (effect: FlowerEffect) => void; onMotionChange?: (colors: readonly string[] | null) => void; lockedPicker?: ReactNode }) {
   const c = useCopy();
   const [falling, setFalling] = useState(false);
+  const [motionOn, setMotionOn] = useState(false);
+
+
   function clearEffects() { setFalling(false); onEffectChange('none'); }
   const [selected, setSelected] = useState('default');
   const [colors, setColors] = useState(['#ffffff', '#80a879']);
+  useEffect(() => { onMotionChange?.(motionOn ? colors : null); }, [motionOn, colors, onMotionChange]);
   const [text, setText] = useState(colors);
   const [errors, setErrors] = useState([false, false]);
   const uid = useId();
+
   function chooseColor(index: number, value: string) {
     setText(previous => previous.map((color, i) => i === index ? value : color));
     const next = colors.map((color, i) => i === index ? value : color);
@@ -39,9 +44,12 @@ export function Appearance({ onChange, onEffectChange, lockedPicker }: { onChang
     if (!background) return;
     clearEffects(); setColors(next); setSelected('custom'); onChange(background);
   }
+
   function syncColors(next: string[]) { setColors(next); setText(next); setErrors([false, false]); }
+
   return <details className="appearance">
     <summary>{c('appearanceSummary', 'Appearance')}</summary>
+
     <div hidden={!!lockedPicker}>
     <p className="quiet-note">Only your view, in Solo or Party. Stays in this tab until reload; never sent to the room.</p>
     <div className="appearance-presets" role="group" aria-label="Color presets">
@@ -51,7 +59,17 @@ export function Appearance({ onChange, onEffectChange, lockedPicker }: { onChang
         onChange(customGradient(preset.colors[0], preset.colors[1])!);
       }}><span aria-hidden="true" className="preset-swatch" style={{ background: customGradient(preset.colors[0], preset.colors[1])! }} />{preset.name}</button>)}
     </div>
-    {EFFECT_THEMES[selected] && <div className="flower-option"><label className="storage-option"><input type="checkbox" checked={falling} onChange={e => { setFalling(e.target.checked); onEffectChange(e.target.checked ? EFFECT_THEMES[selected].moving : EFFECT_THEMES[selected].still); }} />{EFFECT_THEMES[selected].label}</label><p className="quiet-note">Original background accents. Motion is off by default. Reduced motion keeps them still; hidden tabs pause. Only in your view.</p></div>}
+    {EFFECT_THEMES[selected] && <div className="flower-option">
+      <label className="storage-option">
+        <input type="checkbox" checked={falling} onChange={e => { setFalling(e.target.checked); onEffectChange(e.target.checked ? EFFECT_THEMES[selected].moving : EFFECT_THEMES[selected].still); }} />
+        {EFFECT_THEMES[selected].label}
+      </label>
+      <p className="quiet-note">Original background accents. Motion is off by default. Reduced motion keeps them still; hidden tabs pause. Only in your view.</p>
+    </div>}
+    <label className="storage-option motion-option">
+      <input type="checkbox" checked={motionOn} onChange={e => setMotionOn(e.target.checked)} />
+      Gentle warm/sage gradient motion
+    </label>
     <fieldset className="appearance-custom" aria-describedby={`${uid}-contract`}><legend>Custom two-color gradient · #RRGGBB</legend>
       {colors.map((color, index) => <div className="appearance-color" key={index}>
         <label htmlFor={`${uid}-color-${index}`}>{index === 0 ? 'First custom color' : 'Second custom color'}</label>
@@ -63,7 +81,7 @@ export function Appearance({ onChange, onEffectChange, lockedPicker }: { onChang
         {errors[index] && <p id={`${uid}-error-${index}`} role="alert" className="hex-error">Use #RRGGBB (six hex digits). Last valid theme is still applied.</p>}
       </div>)}
     </fieldset>
-    <button className="appearance-reset" aria-pressed={selected === 'default'} onClick={() => { clearEffects(); setSelected('default'); syncColors(['#ffffff', '#80a879']); onChange(undefined); }}>Reset appearance to white and sage</button>
+    <button className="appearance-reset" aria-pressed={selected === 'default'} onClick={() => { clearEffects(); setMotionOn(false); setSelected('default'); syncColors(['#ffffff', '#80a879']); onChange(undefined); }}>Reset appearance to white and sage</button>
     <p id={`${uid}-contract`} className="quiet-note">Exact HEX stops, top left → bottom right. No whitening or color adjustment. Opaque paper reading surfaces protect text; the surrounding gradient keeps your colors.</p>
     </div>{lockedPicker}
   </details>;

@@ -27,6 +27,8 @@ export function SessionComplete({ open, record, locked, firstVisit, storageError
   const id = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const restore = useRef<HTMLElement | null>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   const [experience, setExperience] = useState<number | null>(null);
   const [focus, setFocus] = useState<number | null>(null);
   const [message, setMessage] = useState('');
@@ -38,7 +40,7 @@ export function SessionComplete({ open, record, locked, firstVisit, storageError
     restore.current = document.activeElement as HTMLElement | null;
     dialog.current?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }
       if (e.key !== 'Tab' || !dialog.current) return;
       const items = [...dialog.current.querySelectorAll<HTMLElement>('button, input, summary, a[href]')].filter(el => !el.hasAttribute('disabled'));
       if (items.length === 0) return;
@@ -48,7 +50,7 @@ export function SessionComplete({ open, record, locked, firstVisit, storageError
     }
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); restore.current?.focus?.(); };
-  }, [open, record, onClose]);
+  }, [open, record]);
 
   if (!open || !record) return null;
   const minutes = record.focusedMs === 0 ? 0 : Math.max(1, Math.round(record.focusedMs / 60000));

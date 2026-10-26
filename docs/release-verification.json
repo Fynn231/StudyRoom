@@ -1,0 +1,315 @@
+{
+  "status": "TESTED locally; not committed, pushed, container-built or deployed",
+  "baseMainSha": "672a361e878695cd01e1b6662f2a5622df5c1303",
+  "localBranch": "review/render-release-20261026",
+  "commands": {
+    "typecheck": {
+      "exit": 0,
+      "seconds": 1.0,
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "counts": {}
+    },
+    "build": {
+      "exit": 0,
+      "seconds": 0.69,
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "counts": {}
+    },
+    "test": {
+      "exit": 0,
+      "seconds": 87.92,
+      "command": [
+        "npm",
+        "test"
+      ],
+      "counts": {
+        "tests": 152,
+        "pass": 152,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "integration": {
+      "exit": 0,
+      "seconds": 42.61,
+      "command": [
+        "npm",
+        "run",
+        "test:integration"
+      ],
+      "counts": {
+        "tests": 88,
+        "pass": 88,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "smoke": {
+      "exit": 0,
+      "seconds": 2.43,
+      "command": [
+        "npm",
+        "run",
+        "test:smoke"
+      ],
+      "counts": {
+        "tests": 2,
+        "pass": 2,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "operator": {
+      "exit": 2,
+      "seconds": 0.23,
+      "command": [
+        "npm",
+        "run",
+        "test:operator"
+      ],
+      "counts": {}
+    }
+  },
+  "runtime": {
+    "ok": true,
+    "command": "export STUDY_PUBLIC_ORIGIN=\"$RENDER_EXTERNAL_URL\"; exec node --import tsx server/start.ts",
+    "productionOnlyCopiedDependencies": true,
+    "syntheticConfiguration": true,
+    "externalProviderCalls": false,
+    "containerExecuted": false,
+    "checks": [
+      {
+        "path": "/healthz",
+        "headers": {},
+        "status": 200
+      },
+      {
+        "path": "/api/config",
+        "headers": {},
+        "status": 200
+      },
+      {
+        "path": "/api/session",
+        "headers": {},
+        "status": 401
+      },
+      {
+        "path": "/api/ai/status",
+        "headers": {},
+        "status": 401
+      },
+      {
+        "path": "/auth/confirm?code=synthetic",
+        "headers": {},
+        "status": 200
+      },
+      {
+        "path": "/api/config",
+        "headers": {
+          "Origin": "https://hostile.invalid"
+        },
+        "status": 403
+      },
+      {
+        "path": "/api/config",
+        "headers": {
+          "Origin": "https://synthetic-studyroom.onrender.com/"
+        },
+        "status": 403
+      },
+      {
+        "path": "/api/config",
+        "headers": {
+          "Host": "hostile.invalid",
+          "X-Forwarded-Host": "synthetic-studyroom.onrender.com"
+        },
+        "status": 403
+      },
+      {
+        "path": "/api/config",
+        "headers": {
+          "Origin": "https://synthetic-studyroom.onrender.com"
+        },
+        "status": 200
+      }
+    ],
+    "malformed": [
+      {
+        "class": "trailing-slash",
+        "exit": 1
+      },
+      {
+        "class": "http",
+        "exit": 1
+      },
+      {
+        "class": "credentials",
+        "exit": 1
+      },
+      {
+        "class": "path",
+        "exit": 1
+      },
+      {
+        "class": "empty",
+        "exit": 1
+      }
+    ]
+  },
+  "runtimeImportClosure": {
+    "files": [
+      "server/ai.ts",
+      "server/app.ts",
+      "server/auth.ts",
+      "server/deployment.ts",
+      "server/music.ts",
+      "server/site.ts",
+      "server/socketAuth.ts",
+      "server/start.ts",
+      "src/aiStudy.ts"
+    ],
+    "externalPackages": [
+      "@supabase/supabase-js",
+      "socket.io"
+    ],
+    "errors": [],
+    "method": "esbuild actual runtime graph; erases type-only imports"
+  },
+  "dependencies": {
+    "packageAndLockRootEqual": true,
+    "directVersions": {
+      "@supabase/supabase-js": {
+        "range": "^2.53.0",
+        "locked": "2.118.0",
+        "local": "2.118.0"
+      },
+      "react": {
+        "range": "^19.3.1",
+        "locked": "19.3.1",
+        "local": "19.3.1"
+      },
+      "react-dom": {
+        "range": "^19.3.1",
+        "locked": "19.3.1",
+        "local": "19.3.1"
+      },
+      "socket.io": {
+        "range": "^4.8.4",
+        "locked": "4.8.4",
+        "local": "4.8.4"
+      },
+      "socket.io-client": {
+        "range": "^4.8.4",
+        "locked": "4.8.4",
+        "local": "4.8.4"
+      },
+      "tsx": {
+        "range": "^4.23.15",
+        "locked": "4.23.15",
+        "local": "4.23.15"
+      },
+      "@testing-library/react": {
+        "range": "^16.3.3",
+        "locked": "16.3.3",
+        "local": "16.3.3"
+      },
+      "@types/jsdom": {
+        "range": "^30.0.0",
+        "locked": "30.0.0",
+        "local": "30.0.0"
+      },
+      "@types/node": {
+        "range": "^26.6.5",
+        "locked": "26.6.5",
+        "local": "26.6.5"
+      },
+      "@types/react": {
+        "range": "^19.3.0",
+        "locked": "19.3.0",
+        "local": "19.3.0"
+      },
+      "@types/react-dom": {
+        "range": "^19.3.0",
+        "locked": "19.3.0",
+        "local": "19.3.0"
+      },
+      "jsdom": {
+        "range": "^30.1.3",
+        "locked": "30.1.3",
+        "local": "30.1.3"
+      },
+      "typescript": {
+        "range": "^7.0.2",
+        "locked": "7.0.2",
+        "local": "7.0.2"
+      },
+      "vite": {
+        "range": "^8.3.5",
+        "locked": "8.3.5",
+        "local": "8.3.5"
+      }
+    },
+    "hostNode": "v24.22.0",
+    "copiedProductionPackageCount": 40,
+    "installsPerformed": false
+  },
+  "container": {
+    "image": "node:24.15.0-alpine",
+    "manifest": {
+      "http": 200,
+      "digest": "sha256:d1b3b4da11eefd5941e7f0b9cf17783fc99d9c6fc34884a665f40a06dbdfc94f",
+      "platforms": [
+        {
+          "architecture": "amd64",
+          "os": "linux"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown"
+        },
+        {
+          "architecture": "arm64",
+          "os": "linux",
+          "variant": "v8"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown"
+        },
+        {
+          "architecture": "s390x",
+          "os": "linux"
+        },
+        {
+          "architecture": "unknown",
+          "os": "unknown"
+        }
+      ]
+    },
+    "built": false,
+    "run": false,
+    "limitation": "Docker executable unavailable. Host probe copies platform-appropriate existing locked production dependencies; it does not establish Linux/Alpine installation or container startup."
+  },
+  "limits": [
+    "Private operator suite exits 2 UNAVAILABLE; no operator tests counted in 152 portable passes.",
+    "No live provider success, credentials, Supabase account changes or public HTTP acceptance.",
+    "No new real-browser run for this candidate; UI/default tests use jsdom. Parent browser evidence is separate.",
+    "Existing Vite minified client chunk exceeds 500 kB.",
+    "Secret/path scan is heuristic; four PNG contents are not text-scanned.",
+    "Earlier verification.json and publication-manifest.json are historical baseline only."
+  ]
+}

@@ -1,4 +1,5 @@
 {
+  "scope": "Historical publication baseline at 672a361e878695cd01e1b6662f2a5622df5c1303; not verification of later working trees. See release-verification.json for the current isolated candidate.",
   "status": "portable-gates-passed; private-operator-explicitly-unavailable",
   "gitWhitespaceCheck": {
     "exit": 2,

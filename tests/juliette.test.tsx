@@ -32,9 +32,11 @@ test('ten labeled preview presets include private Juliette flowers with explicit
   const layer = view.container.querySelector<HTMLElement>('.flower-layer')!;
   assert.ok(layer); assert.equal(layer.getAttribute('aria-hidden'), 'true');
   assert.equal(activeVisibility.size, 1);
-  assert.equal(layer.querySelectorAll('svg').length, 24);
-  const flowers = [...layer.querySelectorAll<SVGElement>('svg')];
-  assert.equal(new Set(flowers.map(f => f.style.getPropertyValue('--rest'))).size, 24, 'nonuniform scattered resting heights');
+  assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48);
+  assert.equal(layer.querySelectorAll('svg').length, 48);
+  assert.equal(layer.querySelectorAll('.moon-stars, svg.star').length, 0, 'Juliette never inherits Moon stars');
+  const flowers = [...layer.querySelectorAll<SVGElement>(':scope > svg.flower')];
+  assert.equal(new Set(flowers.map(f => f.style.getPropertyValue('--rest'))).size, 48, 'nonuniform scattered resting heights');
   assert.ok(new Set(flowers.map(f => f.style.getPropertyValue('--x'))).size >= 18, 'scattered across the background, not repeated edge rows');
   assert.ok(flowers.every(f => { const seconds = parseFloat(f.style.getPropertyValue('--duration')); return seconds >= 24 && seconds <= 42; }));
   assert.equal(layer.querySelectorAll('a, button, input, [tabindex]').length, 0);

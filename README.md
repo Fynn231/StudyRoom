@@ -18,6 +18,10 @@ Imported sources and appearance state are in memory. Saved derived plans, reflec
 
 Typing an intention or importing/building a plan does not publish it to a room. Only explicit sharing sends the intention. Private notes and plan steps are not room broadcasts. Explicit optional local AI requests can send selected text to an operator-configured provider; no personal AI runner or account configuration is distributed here. **Hosted AI is disabled**, even when AI environment variables are supplied.
 
+## Isolated release candidate
+
+The current candidate's tested scope is recorded in `docs/release-verification.json`; relative source/candidate hashes and exclusions are in `docs/release-candidate.json`. The older `docs/verification.json` and `docs/publication-manifest.json` describe only the historical main baseline, not this working tree. No container build, real provider sign-in or public deployment is claimed. See `docs/hosted-setup.md` for the tested first-deploy Docker Command that derives the exact canonical origin from Render's assigned URL without a runtime source change.
+
 ## Local setup
 
 Use a Node version accepted by `package.json` (Node 24.15.0 or later in the 24.x line is one option), then:

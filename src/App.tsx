@@ -27,6 +27,7 @@ function countPlanSteps(): { done: number; total: number } {
 import { createFocusChime } from './sound.js';
 import { Appearance, type FlowerEffect } from './Appearance.js';
 import { Flowers } from './Flowers.js';
+import { NormalGradient } from './NormalGradient.js';
 import { LockedAtmosphere, AtmospherePicker, atmosphereStyle, readAtmosphere, saveAtmosphere, type AtmosphereId } from './LockedAtmospheres.js';
 
 type Snapshot = { room: RoomState; receivedAt: number };
@@ -34,6 +35,7 @@ export function App({ endpoint }: { endpoint?: string }) {
   const storage = usePrivateStorage();
   const sessionStorage = usePrivateStorage('sessionStorage');
   const [background, setBackground] = useState<string | undefined>();
+  const [motionPalette, setMotionPalette] = useState<readonly string[] | null>(null);
   const [flowerEffect, setFlowerEffect] = useState<FlowerEffect>('none');
   const [atmospherePreference, setAtmospherePreference] = useState(() => readAtmosphere(storage));
   const [atmosphereStorageError, setAtmosphereStorageError] = useState('');
@@ -267,13 +269,13 @@ export function App({ endpoint }: { endpoint?: string }) {
     if (saved.ok) markCreatorNoteSeen(storage);
   }, [remaining]);
 
-  return <CopyContext.Provider value={c}><div className={`room-backdrop${lockIn ? ' lock-in-mode' : ''}`} style={lockIn ? atmosphereStyle(atmosphere) : { background }}><a className="skip-link" href="#main">Skip to content</a>{lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}{flowerEffect !== 'none' && <Flowers effect={flowerEffect} />}<div className="app-shell">
+  return <CopyContext.Provider value={c}><div className={`room-backdrop${lockIn ? ' lock-in-mode' : ''}`} style={lockIn ? atmosphereStyle(atmosphere) : { background }}><a className="skip-link" href="#main">Skip to content</a>{lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}{motionPalette && <NormalGradient colors={motionPalette} suspended={lockIn} />}{flowerEffect !== 'none' && <Flowers effect={flowerEffect} suspended={lockIn} />}<div className="app-shell">
     <header className="masthead"><button className="wordmark" onClick={tapBrand}>{c('brand', 'study room')}<span className="wordmark-dot" aria-hidden="true">.</span></button><span className="connection" role="status"><i aria-hidden="true" className={connected ? 'live' : ''} />{!party ? 'Solo · private in this tab' : connected ? (auth?.config?.required ? 'Party connected · signed in' : 'Party connected · local demo') : 'Disconnected · shared controls unavailable'}</span></header>
     <main id="main" tabIndex={-1}>
       <HowStudyRoomWorks />
       <div className="page-heading"><div><p className="eyebrow">{c('heroEyebrow', 'A LITTLE SPACE TO BEGIN')}</p><h1>{c('heroTitle', 'One thing at a time.')}</h1></div>{room && <div className="invite"><span>Invite a study partner</span><strong aria-label="Room code">{room.code}</strong><button onClick={async () => { try { await navigator.clipboard.writeText(roomInvite(room.code)); setInviteMessage('Invite link copied.'); } catch { setInviteMessage('Copy unavailable. Select the link below.'); } }}>Copy link</button><input aria-label="Room invite link" readOnly value={roomInvite(room.code)} /><small>{loopbackInvite() ? `Loopback origin ${window.location.origin}: this link only works on the same device, not on a friend’s device. A public HTTPS website with sign-in configured is required for remote friends.` : `Website origin ${window.location.origin}: friends need this exact website to be reachable. Sign in if required, enter your name, then explicitly join. Reachability is not checked here.`}</small><span role="status">{inviteMessage}</span></div>}</div>
       <p className="demo-note">{auth?.config?.required ? 'Signed in · Private device data is separated by account. Rooms reset on server restart.' : 'Local demo · Room codes are not authentication. Don’t enter sensitive content. Rooms reset on server restart.'}</p>
-      <div className="session-tools"><nav className="mode-switch" aria-label="Session mode"><button aria-pressed={!party} onClick={goSolo}>{c('modeSolo', 'Solo')}</button><button aria-pressed={party} onClick={() => setParty(true)}>{c('modeParty', 'Party')}</button></nav><Appearance onChange={setBackground} onEffectChange={setFlowerEffect} lockedPicker={lockIn ? <><AtmospherePicker selected={atmosphere} onSelect={id => chooseAtmosphere(id)} motion={atmosphereMotion} onMotion={motion => chooseAtmosphere(atmosphere, motion)} />{atmosphereStorageError && <p className="quiet-note" role="status">{atmosphereStorageError}</p>}</> : undefined} /></div>
+      <div className="session-tools"><nav className="mode-switch" aria-label="Session mode"><button aria-pressed={!party} onClick={goSolo}>{c('modeSolo', 'Solo')}</button><button aria-pressed={party} onClick={() => setParty(true)}>{c('modeParty', 'Party')}</button></nav><Appearance onChange={setBackground} onEffectChange={setFlowerEffect} onMotionChange={setMotionPalette} lockedPicker={lockIn ? <><AtmospherePicker selected={atmosphere} onSelect={id => chooseAtmosphere(id)} motion={atmosphereMotion} onMotion={motion => chooseAtmosphere(atmosphere, motion)} />{atmosphereStorageError && <p className="quiet-note" role="status">{atmosphereStorageError}</p>}</> : undefined} /></div>
       <Music lockIn={lockIn} activation={musicActivation} />
       <FocusSetup />
       {lockIn && <aside className="lock-in-panel" aria-label="Lock In Mode">
