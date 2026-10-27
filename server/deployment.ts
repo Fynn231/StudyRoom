@@ -33,7 +33,7 @@ export function assertLocalDeployment(env: NodeJS.ProcessEnv = process.env): voi
     if (!supabaseUrlValid) {
       throw new Error('Hosted mode is unavailable: SUPABASE_URL must be an absolute https:// URL with no username or password.');
     }
-    if (env.STUDY_PROXY_POLICY !== 'render') throw Error('Hosted mode requires STUDY_PROXY_POLICY=render: TLS terminates at Render, only canonical Host/Origin are accepted, and forwarded headers are never trusted.');
+    if (env.STUDY_PROXY_POLICY !== 'render') throw Error('Hosted mode requires STUDY_PROXY_POLICY=render: TLS terminates at Render, public reads tolerate internal Host replacement; protected requests require canonical Host/Origin, and forwarded headers are never trusted.');
     if (!isPublishableKey(env.SUPABASE_ANON_KEY ?? '')) throw Error('Hosted mode requires a publishable key, never a secret or service_role key.');
     if (typeof env.SUPABASE_ANON_KEY !== 'string' || env.SUPABASE_ANON_KEY.trim().length === 0) {
       throw new Error('Hosted mode is unavailable: SUPABASE_ANON_KEY must be a non-empty string.');

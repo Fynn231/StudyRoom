@@ -46,12 +46,35 @@ test('actual configured hosted launcher serves health/config/callback shell and 
   child.stdout.on('data',d=>{output+=d;const m=output.match(/http:\/\/127\.0\.0\.1:\d+/);if(m){clearTimeout(timer);resolve(m[0]);}});
   child.once('exit',()=>{clearTimeout(timer);reject(Error('Launcher exited: '+output));});
  });
- const read=(path:string,headers={})=>new Promise<{status:number;body:string}>((resolve,reject)=>{
-  get(url+path,{headers:{Host:'study.example',...headers}},res=>{let body='';res.on('data',d=>body+=d);res.on('end',()=>resolve({status:res.statusCode!,body}));}).on('error',reject);
+ const read=(path:string,headers={})=>new Promise<{status:number;body:string;headers:import('node:http').IncomingHttpHeaders}>((resolve,reject)=>{
+  get(url+path,{headers:{Host:'study.example',...headers}},res=>{let body='';res.on('data',d=>body+=d);res.on('end',()=>resolve({status:res.statusCode!,body,headers:res.headers}));}).on('error',reject);
  });
  assert.equal((await read('/healthz')).status,200);
+ const shell=await read('/',{Host:'render-internal:10000'});assert.equal(shell.status,200);
+ // A browser's module fetch sends the navigation origin, not the configured
+ // canonical origin. Exercise actual built JS and CSS over HTTP with that header.
+ const assets=[...shell.body.matchAll(/(?:src|href)="([^" ]+\.(?:js|css))"/g)].map(m=>m[1]);
+ assert.ok(assets.some(p=>p.endsWith('.js')));assert.ok(assets.some(p=>p.endsWith('.css')));
+ const proxyHeaders={Host:new URL(url).host,Origin:url,'Sec-Fetch-Site':'same-origin','Sec-Fetch-Mode':'cors'};
+ for(const path of [...assets,'/api/config','/healthz','/auth/confirm?code=synthetic']) {
+  const response=await read(path,proxyHeaders);assert.equal(response.status,200,path);
+  assert.equal(response.headers['access-control-allow-origin'],undefined);
+  assert.equal(response.headers['access-control-allow-credentials'],undefined);
+  assert.equal(response.headers['set-cookie'],undefined);
+  if(path.endsWith('.js'))assert.match(String(response.headers['content-type']),/javascript/);
+  if(path.endsWith('.css'))assert.match(String(response.headers['content-type']),/css/);
+ }
+ for(const path of ['/','/api/config','/healthz',...assets]) {
+  assert.equal((await read(path,{Host:'arbitrary.example',Origin:'null','Sec-Fetch-Site':'cross-site','Sec-Fetch-Mode':'cors'})).status,200,path);
+ }
+ for(const path of ['/api/session','/api/ai/status','/api/music/status','/api/music/spotify/callback?code=synthetic','/unknown','/assets/nested/private.js']) {
+  assert.equal((await read(path,proxyHeaders)).status,403,path);
+  assert.equal((await read(path,{Host:'study.example',Origin:url})).status,403,path);
+ }
+ assert.equal((await read('/auth/confirm?code=synthetic',{Host:'render-internal:10000'})).status,200);
  const publicConfig=await read('/api/config');assert.equal(JSON.parse(publicConfig.body).auth.required,true);assert.doesNotMatch(publicConfig.body,/service_role|sb_secret/);
  assert.equal((await read('/api/session')).status,401);
  assert.match((await read('/auth/confirm?code=synthetic')).body,/<title>Study Room/);
- assert.equal((await read('/api/config',{Host:'hostile.example','X-Forwarded-Host':'study.example'})).status,403);
+ assert.equal((await read('/api/config',{Host:'render-internal','X-Forwarded-Host':'hostile.example'})).status,200);
+ assert.equal((await read('/api/session',{Host:'render-internal','X-Forwarded-Host':'study.example'})).status,403);
 });

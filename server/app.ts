@@ -67,10 +67,24 @@ export function createStudyServer(
   let pendingRequests = 0;
   const httpBuckets = new Map<string, { start: number; count: number }>();
   const http = createServer({ maxHeaderSize: 16384 }, async (req, res) => {
-    if (!allowed(req.headers.host, req.headers.origin)) { res.writeHead(403); res.end('Canonical same-origin requests only.'); return; }
     let path;
     try { path = new URL(req.url ?? '/', 'http://localhost').pathname; }
     catch { res.writeHead(400); res.end(); return; }
+    // Render may replace Host on the internal hop. Only this finite public read
+    // surface may ignore it; headers from clients/proxies never establish trust.
+    const publicRead = (req.method === 'GET' || req.method === 'HEAD') && (
+      ['/', '/index.html', '/auth/confirm', '/api/config', '/healthz', '/sw.js',
+        '/manifest.webmanifest', '/icon-192.png', '/icon-512.png',
+        '/icon-maskable-512.png', '/apple-touch-icon.png'].includes(path)
+      || /^\/assets\/[A-Za-z0-9_-]+\.(?:js|css|png|svg|woff2?)$/.test(path)
+    );
+    // These responses contain only public data. Module requests carry the
+    // navigation origin, which may differ from the configured callback origin.
+    // This exemption grants no CORS access and never applies in local mode.
+    const publicProxyRead = hosted && publicRead;
+    if (!publicProxyRead && !allowed(req.headers.host, req.headers.origin)) {
+      res.writeHead(403); res.end('Canonical same-origin requests only.'); return;
+    }
     let identity;
     if (hosted) {
       const now = Date.now();
@@ -96,8 +110,8 @@ export function createStudyServer(
     if (path.startsWith('/api/music/')) { void music(req, res, identity); return; }
     if (path === '/api/session' && req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: true })); return; }
     if (req.url?.startsWith('/api/ai/')) { void inference(req, res); return; }
-    if (path === '/api/config' && req.method === 'GET') { sendConfig(res); return; }
-    if (path === '/healthz' && req.method === 'GET') { sendHealth(res); return; }
+    if (path === '/api/config' && (req.method === 'GET' || req.method === 'HEAD')) { sendConfig(res, req.method === 'HEAD'); return; }
+    if (path === '/healthz' && (req.method === 'GET' || req.method === 'HEAD')) { sendHealth(res, req.method === 'HEAD'); return; }
     (handler ?? ((_req, response) => response.end('Study Room')))(req, res);
   });
   http.maxHeadersCount = 128;
@@ -109,25 +123,26 @@ export function createStudyServer(
     const hosts = [`127.0.0.1:${address.port}`, `localhost:${address.port}`];
     return hosts.includes(host ?? '') && (origin === undefined || hosts.some(h => origin === `http://${h}`));
   }
-  function sendConfig(res: ServerResponse) {
+  function sendConfig(res: ServerResponse, head = false) {
     const mode = process.env.STUDY_DEPLOYMENT_MODE ?? 'local';
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json');
     res.writeHead(200);
-    res.end(JSON.stringify({
+    res.end(head ? undefined : JSON.stringify({
       mode,
       auth: {
         required: mode === 'hosted',
+        publicOrigin: authConfig?.publicOrigin ?? '',
         url: authConfig?.supabaseUrl ?? '',
         anonKey: authConfig?.anonKey ?? '',
       },
     }));
   }
-  function sendHealth(res: ServerResponse) {
+  function sendHealth(res: ServerResponse, head = false) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json');
     res.writeHead(200);
-    res.end(JSON.stringify({ ok: true }));
+    res.end(head ? undefined : JSON.stringify({ ok: true }));
   }
   const io = new Server(http, {
     maxHttpBufferSize: 4096,

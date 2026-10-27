@@ -2,7 +2,7 @@ import { inviteSuffix } from './invite.js';
 import { createClient, type SupabaseClient, type Session, type AuthChangeEvent } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useCallback, useState, useRef, type ReactNode } from 'react';
 export { createClient, type Session, type SupabaseClient, type AuthChangeEvent };
-export interface AuthConfig { url: string; anonKey: string; required: boolean; }
+export interface AuthConfig { url: string; anonKey: string; required: boolean; publicOrigin?: string; }
 export interface UserIdentity { id: string; email: string; name: string; }
 export interface AuthContextValue {
   config: AuthConfig | null; session: Session | null; user: UserIdentity | null; isAuthorized: boolean;
@@ -139,15 +139,15 @@ export function AuthProvider({ children, clientFactory = createSupabaseClient }:
   const signInWithEmail = useCallback(async (email: string) => {
     if (!supabase) throw Error('Sign-in configuration unavailable');
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/confirm${inviteSuffix(new URL(window.location.href))}` } });
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${config?.publicOrigin || window.location.origin}/auth/confirm${inviteSuffix(new URL(window.location.href))}` } });
     if (error) throw error;
-  }, [supabase]);
+  }, [supabase, config]);
   const signInWithGoogle = useCallback(async () => {
     if (!supabase) throw Error('Sign-in configuration unavailable');
     setError(null);
-    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/confirm${inviteSuffix(new URL(window.location.href))}` } });
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${config?.publicOrigin || window.location.origin}/auth/confirm${inviteSuffix(new URL(window.location.href))}` } });
     if (error) throw error;
-  }, [supabase]);
+  }, [supabase, config]);
   const signOut = useCallback(async () => {
     // Immediately unmount private state, sockets and SDK devices, including when
     // provider logout is slow or fails. Report failure; never assert revocation.

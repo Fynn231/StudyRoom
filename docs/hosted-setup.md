@@ -13,7 +13,7 @@ This is setup guidance, not evidence of a deployed integration. No remote SQL or
 | `SUPABASE_ANON_KEY` | Publishable key or legacy anon key; never service-role/secret |
 | `PORT` | Render-provided port; blueprint specifies `10000` |
 
-The server rejects incomplete hosted configuration before listening. Host and Origin must match the configured canonical origin. Forwarded headers cannot broaden trust. Do not expose local mode by changing its bind address to bypass authentication.
+The server rejects incomplete hosted configuration before listening. Protected APIs and sockets require the configured canonical Host and Origin (when present). Only explicit public GET/HEAD shell, asset, config and health routes are readable regardless of Host, Origin or fetch metadata, without granting cross-origin CORS access or credentials. All other routes retain canonical Host/Origin checks. A correct `STUDY_PUBLIC_ORIGIN` is still required for protected requests and authentication. Sign-in callbacks use the explicit STUDY_PUBLIC_ORIGIN returned by config. Forwarded headers cannot broaden trust. Do not expose local mode by changing its bind address to bypass authentication.
 
 ## First deploy without guessing the assigned hostname
 

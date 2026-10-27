@@ -29,7 +29,7 @@ test('synthetic provider lifecycle submits signed-out actions, isolates account 
  Object.assign(globalThis,{window:dom.window,document:dom.window.document,HTMLElement:dom.window.HTMLElement,localStorage:dom.window.localStorage,sessionStorage:dom.window.sessionStorage,IS_REACT_ACT_ENVIRONMENT:true});
  const original=globalThis.fetch;let session:any=null;let notify:(event:any,session:any)=>void=()=>{};let created=0,disposed=0,unsubscribed=0,emails=0,google=0,signouts=0;
  globalThis.fetch=async input=>{
-  if(String(input)==='/api/config')return Response.json({mode:'hosted',auth:{required:true,url:'https://synthetic.invalid',anonKey:'sb_publishable_synthetic'}});
+  if(String(input)==='/api/config')return Response.json({mode:'hosted',auth:{required:true,publicOrigin:'https://canonical.example',url:'https://synthetic.invalid',anonKey:'sb_publishable_synthetic'}});
   if(String(input)==='/api/session')return Response.json({ok:true}); // synthetic server session check, not provider integration
   return Response.json({configured:false,liveVerified:false});
  };
@@ -38,8 +38,8 @@ test('synthetic provider lifecycle submits signed-out actions, isolates account 
   return {auth:{
    onAuthStateChange:(fn:any)=>{notify=fn;return{data:{subscription:{unsubscribe:()=>unsubscribed++}}};},
    getSession:async()=>({data:{session},error:null}),dispose:async()=>{disposed++;},
-   signInWithOtp:async(args:any)=>{emails++;assert.equal(args.email,'synthetic@example.invalid');assert.equal(args.options.emailRedirectTo,'https://study.example/auth/confirm');return{error:null};},
-   signInWithOAuth:async(args:any)=>{google++;assert.equal(args.provider,'google');return{error:null};},
+   signInWithOtp:async(args:any)=>{emails++;assert.equal(args.email,'synthetic@example.invalid');assert.equal(args.options.emailRedirectTo,'https://canonical.example/auth/confirm');return{error:null};},
+   signInWithOAuth:async(args:any)=>{google++;assert.equal(args.provider,'google');assert.equal(args.options.redirectTo,'https://canonical.example/auth/confirm');return{error:null};},
    signOut:async(args:any)=>{signouts++;assert.equal(args.scope,'global');session=null;notify('SIGNED_OUT',null);return{error:null};},
   }} as any;
  };
