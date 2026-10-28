@@ -3,14 +3,10 @@ import type { FlowerEffect } from './Appearance.js';
 import { cuppedPetalFaces, useNaturalMotion } from './naturalMotion.js';
 
 // 48 flower positions (scattered across the viewport)
-const SCATTER: Array<[number, number]> = [
-  [3, 7], [10, 20], [17, 33], [24, 46], [31, 59], [38, 72], [45, 85], [52, 98],
-  [59, 11], [66, 24], [73, 37], [80, 50], [87, 63], [94, 76], [1, 89], [8, 2],
-  [15, 15], [22, 28], [29, 41], [36, 54], [43, 67], [50, 80], [57, 93], [64, 6],
-  [71, 19], [78, 32], [85, 45], [92, 58], [99, 71], [6, 84], [13, 97], [20, 10],
-  [27, 23], [34, 36], [41, 49], [48, 62], [55, 75], [62, 88], [69, 1], [76, 14],
-  [83, 27], [90, 40], [97, 53], [4, 66], [11, 79], [18, 92], [25, 5], [32, 18]
-];
+const SCATTER: Array<[number, number]> = Array.from({ length: 48 }, (_, i) => {
+  const seed = (salt: number) => { const n = Math.sin((i + 1) * 127.1 + salt * 311.7) * 43758.5453; return (n - Math.floor(n)) * 100; };
+  return [seed(1), seed(2)];
+});
 const CUPPED = SCATTER.map((_, i) => cuppedPetalFaces(i));
 
 // Star positions for the Moon atmosphere (used only when kind === 'moon')
@@ -100,12 +96,20 @@ export const Flowers = memo(function Flowers({ effect, suspended = false }: { ef
             </>
           ) : (
             <>
+              <defs><linearGradient id={`leaf-shade-${i}`} x1="0" y1="0" x2="1" y2=".8">
+                <stop offset="0" stopColor={i % 2 ? '#f1bd80' : '#f6d996'} />
+                <stop offset=".42" stopColor={i % 2 ? '#bd7046' : '#d5a34e'} />
+                <stop offset=".5" stopColor="#f0c882" />
+                <stop offset=".62" stopColor={i % 2 ? '#a45e3a' : '#bd853a'} />
+                <stop offset="1" stopColor="#785035" />
+              </linearGradient></defs>
               <path
                 d={i % 2 ? 'M5 34C0 13 18 4 35 5C36 25 28 39 5 34Z' : 'M6 34L8 24L2 20L13 18L12 7L21 13L30 3L31 17L38 19L29 26L32 33L20 31Z'}
-                fill={i % 2 ? '#bd7046' : '#d5a34e'}
+                fill={`url(#leaf-shade-${i})`}
                 stroke="#805436"
                 strokeWidth="1"
               />
+              <path d="M7 32Q13 17 30 9" fill="none" stroke="#f6dcaa" strokeWidth=".7" opacity=".75" />
               <path d="M5 35L29 11M14 26L12 18M20 20L29 21" fill="none" stroke="#805436" strokeWidth="1.3" />
             </>
           )}

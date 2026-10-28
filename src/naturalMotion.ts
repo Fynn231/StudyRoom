@@ -1,17 +1,30 @@
 import { useEffect, useRef, type RefObject } from 'react';
 
+// Stable nonuniform seeds avoid visible rows and synchronized trajectories.
+function scatter(index: number, salt: number) {
+  const n = Math.sin((index + 1) * 127.1 + salt * 311.7) * 43758.5453;
+  return n - Math.floor(n);
+}
+function screenX(x: number, index: number, width: number) {
+  const gutter = Math.max(0, (width - 1184) / 2 - 24);
+  // Most bodies use available side space on wide screens; the remainder pass
+  // through internal background gaps behind the opaque reading surfaces.
+  if (gutter > 65 && index % 3 !== 0) return (index % 2 ? width - gutter : 0) + x * gutter;
+  return x * width;
+}
+
 // Continuous force field from the approved Juliette study. Only transforms are
 // written per frame: the shaded cupped meshes are authored once, not repainted.
 export function useNaturalMotion(ref: RefObject<HTMLDivElement | null>, moving: boolean, suspended = false) {
-  const state = useRef({ time: 0, bodies: Array.from({ length: 24 }, (_, i) => ({
-    x: ((i * 37 + 3) % 100) / 100, y: ((i * 29 + 3) % 100) / 100,
-    vx: 0, vy: .028 + (i % 5) * .004, a: (i * 1.71) % 6.28, b: i * .47, c: i * .81,
+  const state = useRef({ time: 0, bodies: Array.from({ length: 48 }, (_, i) => ({
+    x: scatter(i, 1), y: scatter(i, 2),
+    vx: 0, vy: .025 + scatter(i, 3) * .028, a: (i * 1.71) % 6.28, b: i * .47, c: i * .81,
     wa: 0, wb: 0, wc: 0, phase: i * 1.37,
   })) });
   useEffect(() => {
     const layer = ref.current;
     if (!layer) return;
-    const elements = [...layer.querySelectorAll<SVGElement>('svg')];
+    const elements = [...layer.querySelectorAll<SVGElement>(':scope > svg.flower')];
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
     let raf = 0, previous: number | null = null;
     function draw() {
@@ -19,7 +32,7 @@ export function useNaturalMotion(ref: RefObject<HTMLDivElement | null>, moving: 
       state.current.bodies.forEach((b, i) => {
         const el = elements[i];
         if (!el) return;
-        el.style.transform = `translate3d(${(b.x * w).toFixed(3)}px,${(b.y * h).toFixed(3)}px,0) rotateX(${(Math.sin(b.a) * 36).toFixed(3)}deg) rotateY(${(Math.sin(b.b) * 42).toFixed(3)}deg) rotate(${(b.c * 180 / Math.PI).toFixed(3)}deg)`;
+        el.style.transform = `translate3d(${screenX(b.x, i, w).toFixed(3)}px,${(b.y * h).toFixed(3)}px,0) rotateX(${(Math.sin(b.a) * 36).toFixed(3)}deg) rotateY(${(Math.sin(b.b) * 42).toFixed(3)}deg) rotate(${(b.c * 180 / Math.PI).toFixed(3)}deg)`;
       });
     }
     function step(dt: number) {
@@ -27,10 +40,10 @@ export function useNaturalMotion(ref: RefObject<HTMLDivElement | null>, moving: 
       const t = state.current.time;
       for (const b of state.current.bodies) {
         const fx = Math.sin(b.y * 4.3 + t * .31) * .05 + Math.cos(b.x * 3.7 - b.y * 2.1 + t * .19) * .037 + Math.sin(t * .47) * .026;
-        const fy = Math.cos(b.x * 4.6 + b.y * 2 + t * .26) * .10;
+        const fy = Math.cos(b.x * 4.6 + b.y * 2 + t * .26 + b.phase) * .014;
         const drag = 1.25 + .7 * Math.abs(Math.cos(b.a) * Math.cos(b.b));
         b.vx += (fx - b.vx) * dt * .8;
-        b.vy += (.081 + fy - b.vy * drag) * dt * .6;
+        b.vy += (.072 + .024 * Math.sin(b.phase) + fy - b.vy * drag) * dt * .6;
         b.x += b.vx * dt; b.y += b.vy * dt;
         b.wa += (fx * 4 + .13 * Math.sin(t * .67 + b.phase) - b.wa * .5) * dt;
         b.wb += (fy * 4 + .11 * Math.cos(t * .51 + b.phase) - b.wb * .5) * dt;

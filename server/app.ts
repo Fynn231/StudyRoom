@@ -142,7 +142,8 @@ export function createStudyServer(
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Content-Type', 'application/json');
     res.writeHead(200);
-    res.end(head ? undefined : JSON.stringify({ ok: true }));
+    const revision = process.env.RENDER_GIT_COMMIT;
+    res.end(head ? undefined : JSON.stringify({ ok: true, revision: revision && /^[a-f0-9]{40}$/.test(revision) ? revision : null }));
   }
   const io = new Server(http, {
     maxHttpBufferSize: 4096,

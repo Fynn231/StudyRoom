@@ -69,3 +69,24 @@ test('account connection is explicit and fails closed without touching official 
   assert.equal(view.container.textContent!.includes('Check account setup'), false);
   assert.equal(dom.window.localStorage.getItem('studyroom.musicPrefs.v1')!.includes('token'), false);
 });
+
+test('Spotify connection preserves the active page by offering a deliberate new-tab link', async t => {
+  const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://127.0.0.1:4173' });
+  Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true });
+  const original = globalThis.fetch;
+  globalThis.fetch = async url => String(url).endsWith('/status')
+    ? Response.json({ spotify: { ready: true, authorized: false, blocker: null }, apple: { ready: false, blocker: 'disabled' } })
+    : Response.json({ url: 'https://accounts.spotify.com/authorize?state=synthetic' });
+  const rtl = await import('@testing-library/react');
+  t.after(() => { rtl.cleanup(); globalThis.fetch = original; dom.window.close(); });
+  const view = rtl.render(<Music />), q = rtl.within(view.container);
+  rtl.fireEvent.click(q.getByRole('button', { name: 'Check account setup', hidden: true }));
+  await rtl.waitFor(() => assert.equal((q.getByRole('button', { name: 'Connect Spotify account', hidden: true }) as HTMLButtonElement).disabled, false));
+  rtl.fireEvent.click(q.getByRole('button', { name: 'Connect Spotify account', hidden: true }));
+  const link = await q.findByRole('link', { name: 'Continue Spotify connection (new tab)', hidden: true });
+  assert.equal(link.getAttribute('target'), '_blank');
+  assert.equal(link.getAttribute('rel'), 'noopener noreferrer');
+  assert.equal(dom.window.location.href, 'http://127.0.0.1:4173/');
+  assert.match(view.container.textContent!, /Your timer and drafts stay here/);
+  assert.equal(dom.window.localStorage.length, 0, 'OAuth URL and state are never persisted');
+});

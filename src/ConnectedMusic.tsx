@@ -23,6 +23,8 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive }
   const [message, setMessage] = useState('Account playback is optional. Official embeds above do not require this setup.');
   const [device, setDevice] = useState<string | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [connectionUrl, setConnectionUrl] = useState<string | null>(null);
+  const [authorizing, setAuthorizing] = useState(false);
   const player = useRef<Player | null>(null); const expiry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const generation = useRef(0); const alive = useRef(true);
   function teardown() {
@@ -32,14 +34,20 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive }
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; teardown(); }; }, []);
   useEffect(() => { if (embeddedActive) { teardown(); setDevice(null); setEnabled(false); setMessage('Official embed selected. Connected Spotify device unloaded.'); } }, [embeddedActive]);
+  useEffect(() => {
+    if (!connectionUrl) return;
+    const timer = setTimeout(() => { setConnectionUrl(null); setMessage('Connection link expired. Check account setup or connect again; your study session is unchanged.'); }, 300_000);
+    return () => clearTimeout(timer);
+  }, [connectionUrl]);
   async function check() {
-    try { const response = await authFetch('/api/music/status', { cache: 'no-store' }); if (!response.ok) throw Error(); const value = await response.json(); if (alive.current) { setReadiness(value); setMessage('Setup checked. Authorization and device readiness are not playback.'); } }
+    try { const response = await authFetch('/api/music/status', { cache: 'no-store' }); if (!response.ok) throw Error(); const value = await response.json(); if (alive.current) { setReadiness(value); if (value.spotify?.authorized) setConnectionUrl(null); setMessage('Setup checked. Authorization and device readiness are not playback.'); } }
     catch { if (alive.current) setMessage('Account setup is unavailable. Official embeds still work.'); }
   }
   async function authorize() {
-    teardown(); setDevice(null); setEnabled(false);
-    try { const response = await authFetch('/api/music/spotify/begin', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); const value = await response.json(); if (!response.ok) throw Error(); const url = new URL(value.url); if (url.origin !== 'https://accounts.spotify.com' || url.pathname !== '/authorize') throw Error(); if (alive.current) window.location.assign(url.href); }
-    catch { if (alive.current) setMessage('Could not start Spotify authorization. Check setup and retry.'); }
+    teardown(); const run = generation.current; setDevice(null); setEnabled(false); setConnectionUrl(null); setAuthorizing(true);
+    try { const response = await authFetch('/api/music/spotify/begin', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); const value = await response.json(); if (!response.ok) throw Error(); const url = new URL(value.url); if (url.origin !== 'https://accounts.spotify.com' || url.pathname !== '/authorize') throw Error(); if (alive.current && run === generation.current) { setConnectionUrl(url.href); setMessage('Open Spotify in a new tab to connect. Your timer and drafts stay here. Return here and check account setup after finishing. The connection link expires in five minutes.'); } }
+    catch { if (alive.current && run === generation.current) setMessage('Could not start Spotify authorization. Check setup and retry.'); }
+    finally { if (alive.current && run === generation.current) setAuthorizing(false); }
   }
   async function enable() {
     teardown(); const run = generation.current; setEnabled(true); setDevice(null); onEnable(); setMessage('Loading Spotify SDK. Playback has not started.');
@@ -85,7 +93,8 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive }
     <button onClick={() => void check()}>Check account setup</button>
     {readiness && <p className="quiet-note">{readiness[provider].blocker ?? 'Spotify app configured. Continue with genuine provider consent.'}</p>}
     {provider === 'spotify' && <>
-      <button disabled={!readiness?.spotify.ready} onClick={() => void authorize()}>Connect Spotify account</button>
+      <button disabled={!readiness?.spotify.ready || authorizing} onClick={() => void authorize()}>Connect Spotify account</button>
+      {connectionUrl && <p><a className="launch-link" href={connectionUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Continue Spotify connection (new tab)</a></p>}
       {readiness?.spotify.authorized && <>
         <button disabled={enabled} onClick={() => void enable()}>Enable Spotify device</button>
         <button disabled={!device || !selection} onClick={() => void play()}>Play selected on Spotify device</button>

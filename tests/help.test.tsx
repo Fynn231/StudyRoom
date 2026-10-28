@@ -4,7 +4,7 @@ import React from 'react';
 import { JSDOM } from 'jsdom';
 import { App } from '../src/App.js';
 
-test('one collapsed How to use entry precedes the focus surface and explains deliberate actions without side effects', async t => {
+test('one collapsed How to use entry follows the focus surface and explains deliberate actions without side effects', async t => {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, FileReader: dom.window.FileReader, ArrayBuffer: dom.window.ArrayBuffer, IS_REACT_ACT_ENVIRONMENT: true });
   const { render, fireEvent, within, cleanup, waitFor } = await import('@testing-library/react');
@@ -14,8 +14,8 @@ test('one collapsed How to use entry precedes the focus surface and explains del
   const help = summary.closest('details')!;
   assert.equal(view.container.querySelectorAll('.help-panel').length, 1);
   assert.equal(help.open, false);
-  assert.equal(help.parentElement?.tagName, 'MAIN');
-  assert.ok(help.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING);
+  assert.ok(help.parentElement?.classList.contains('workspace-tools'));
+  assert.ok(help.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_PRECEDING);
   assert.equal(help.querySelectorAll('details').length, 0);
   assert.equal(view.container.querySelector('a[href="#help-setup"]'), null);
   fireEvent.click(summary);

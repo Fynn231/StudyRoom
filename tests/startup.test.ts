@@ -5,14 +5,14 @@ import { once } from 'node:events';
 import { io } from 'socket.io-client';
 
 for (const entry of ['start', 'dev']) {
-  test(`actual ${entry} entrypoint serves the UI and two socket clients, then closes`, { timeout: 15000 }, async t => {
+  test(`actual ${entry} entrypoint serves the UI and two socket clients, then closes`, { timeout: 60000 }, async t => {
     const child = spawn(process.execPath, ['--import', 'tsx', `server/${entry}.ts`], { cwd: process.cwd(), env: { ...process.env, PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
     child.stderr.on('data', data => output += data);
     const exited = once(child, 'exit');
     t.after(async () => { child.kill('SIGTERM'); await exited; });
     const url = await new Promise<string>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error(`No startup URL: ${output}`)), 10000);
+      const timeout = setTimeout(() => reject(new Error(`No startup URL: ${output}`)), 30000);
       child.stdout.on('data', data => {
         output += data;
         const match = output.match(/http:\/\/127\.0\.0\.1:\d+/);

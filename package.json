@@ -11,14 +11,15 @@
     "start": "tsx server/start.ts",
     "start:ai": "node --import tsx tests/local-only/start-ai.mjs",
     "pretest": "npm run build",
-    "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts tests/*.test.tsx",
+    "test": "node --import tsx --import ./tests/setup.ts --test --test-concurrency=1 tests/*.test.ts tests/*.test.tsx",
     "pretest:integration": "npm run build",
     "test:integration": "tsx --test --test-concurrency=1 tests/*.test.ts tests/ui.test.tsx tests/party-private.test.tsx tests/goal-notes-privacy.test.tsx tests/appearance.test.tsx tests/appearance-privacy.test.tsx tests/juliette.test.tsx tests/ai-ui.test.tsx tests/study-progress.test.tsx tests/study-progress-storage.test.tsx",
     "pretest:smoke": "npm run build",
     "test:smoke": "tsx --test --test-concurrency=1 tests/startup.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "vite build",
-    "test:operator": "node tests/local-only/run.mjs"
+    "test:operator": "node tests/local-only/run.mjs",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
@@ -29,6 +30,8 @@
     "tsx": "^4.23.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
     "@testing-library/react": "^16.3.3",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^26.6.5",

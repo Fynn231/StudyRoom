@@ -38,7 +38,7 @@ test('Music selects only exact HTTPS Spotify content links and exposes an explic
   const view = render(<App />); const q = within(view.container);
   const panel = view.container.querySelector<HTMLDetailsElement>('.music-panel')!;
   assert.equal(panel.open, false, 'compact disclosure by default');
-  assert.ok(panel.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING, 'music appears near the top, before the focus timer');
+  assert.ok(panel.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_PRECEDING, 'music stays available below the central focus timer');
   fireEvent.click(q.getByText('Music', { selector: 'summary' }));
   const input = q.getByLabelText('Spotify link');
   assert.equal(q.queryAllByRole('link', { name: 'Open in Spotify (new tab)' }).length, 0);

@@ -50,7 +50,7 @@ export function SessionComplete({ open, record, locked, firstVisit, storageError
     }
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('keydown', onKey); restore.current?.focus?.(); };
-  }, [open, record]);
+  }, [open, record?.id]);
 
   if (!open || !record) return null;
   const minutes = record.focusedMs === 0 ? 0 : Math.max(1, Math.round(record.focusedMs / 60000));
