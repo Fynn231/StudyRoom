@@ -1,71 +1,51 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 
-// Stable nonuniform seeds avoid visible rows and synchronized trajectories.
-function scatter(index: number, salt: number) {
-  const n = Math.sin((index + 1) * 127.1 + salt * 311.7) * 43758.5453;
-  return n - Math.floor(n);
+// Paired, stratified lanes keep equal visual weight on both sides at every
+// frame. Wind is bounded inside each lane; it cannot collect an entire field
+// against one edge. Every row keeps its own continuous, gentle sway.
+export const DECORATION_COUNT = 48;
+export function decorationPose(index: number, time: number, width: number, height: number, gutter: number) {
+  const pair = Math.floor(index / 2), side = index % 2;
+  const size = 28 + (pair % 4) * 4;
+  const scaledSize = width <= 600 ? size * .78 : size;
+  const field = Math.max(scaledSize + 12, Math.min(gutter, 240));
+  const room = Math.max(0, field - scaledSize - 16);
+  const lane = pair % 2 ? .72 : .28;
+  const phase = pair * 2.399963;
+  const sway = Math.sin(time * .19 + phase) * .12 + Math.sin(time * .071 + phase * 1.3) * .07;
+  const x = 8 + room * Math.max(.04, Math.min(.96, lane + sway));
+  const cycle = height + 128, row = (pair * 11) % 24;
+  const progress = ((row + .5) / 24 + time * 22 / cycle) % 1;
+  const y = progress * cycle - 64 + Math.sin(time * .23 + phase) * (cycle / 24) * .1;
+  return { x: side ? width - scaledSize - x : x, y, size,
+    tiltX: Math.sin(time * .31 + phase) * 14,
+    tiltY: Math.sin(time * .21 + phase) * 18 * (side ? -1 : 1),
+    rotation: (Math.sin(time * .17 + phase) * 24 + Math.sin(phase) * 50) * (side ? -1 : 1) };
 }
-function screenX(x: number, index: number, width: number) {
-  const gutter = Math.max(0, (width - 1184) / 2 - 24);
-  // Most bodies use available side space on wide screens; the remainder pass
-  // through internal background gaps behind the opaque reading surfaces.
-  if (gutter > 65 && index % 3 !== 0) return (index % 2 ? width - gutter : 0) + x * gutter;
-  return x * width;
-}
-
-// Continuous force field from the approved Juliette study. Only transforms are
-// written per frame: the shaded cupped meshes are authored once, not repainted.
 export function useNaturalMotion(ref: RefObject<HTMLDivElement | null>, moving: boolean, suspended = false) {
-  const state = useRef({ time: 0, bodies: Array.from({ length: 48 }, (_, i) => ({
-    x: scatter(i, 1), y: scatter(i, 2),
-    vx: 0, vy: .025 + scatter(i, 3) * .028, a: (i * 1.71) % 6.28, b: i * .47, c: i * .81,
-    wa: 0, wb: 0, wc: 0, phase: i * 1.37,
-  })) });
-  useEffect(() => {
+  const time = useRef(0);
+  useLayoutEffect(() => {
     const layer = ref.current;
     if (!layer) return;
     const elements = [...layer.querySelectorAll<SVGElement>(':scope > svg.flower')];
     const media = window.matchMedia?.('(prefers-reduced-motion: reduce)');
-    let raf = 0, previous: number | null = null;
-    function draw() {
-      const w = window.innerWidth, h = window.innerHeight;
-      state.current.bodies.forEach((b, i) => {
-        const el = elements[i];
-        if (!el) return;
-        el.style.transform = `translate3d(${screenX(b.x, i, w).toFixed(3)}px,${(b.y * h).toFixed(3)}px,0) rotateX(${(Math.sin(b.a) * 36).toFixed(3)}deg) rotateY(${(Math.sin(b.b) * 42).toFixed(3)}deg) rotate(${(b.c * 180 / Math.PI).toFixed(3)}deg)`;
-      });
+    let raf = 0, previous: number | null = null, gutter = window.innerWidth * .14;
+    function measure() {
+      const shell = document.querySelector<HTMLElement>('.app-shell');
+      if (shell) gutter = shell.getBoundingClientRect().left + parseFloat(window.getComputedStyle(shell).paddingLeft || '0');
+      draw();
     }
-    function step(dt: number) {
-      state.current.time += dt;
-      const t = state.current.time;
-      for (const b of state.current.bodies) {
-        const fx = Math.sin(b.y * 4.3 + t * .31) * .05 + Math.cos(b.x * 3.7 - b.y * 2.1 + t * .19) * .037 + Math.sin(t * .47) * .026;
-        const fy = Math.cos(b.x * 4.6 + b.y * 2 + t * .26 + b.phase) * .014;
-        const drag = 1.25 + .7 * Math.abs(Math.cos(b.a) * Math.cos(b.b));
-        b.vx += (fx - b.vx) * dt * .8;
-        b.vy += (.072 + .024 * Math.sin(b.phase) + fy - b.vy * drag) * dt * .6;
-        b.x += b.vx * dt; b.y += b.vy * dt;
-        b.wa += (fx * 4 + .13 * Math.sin(t * .67 + b.phase) - b.wa * .5) * dt;
-        b.wb += (fy * 4 + .11 * Math.cos(t * .51 + b.phase) - b.wb * .5) * dt;
-        b.wc += (fx * 2 + .1 * Math.sin(b.y * 9 + b.phase) - b.wc * .7) * dt;
-        b.a += b.wa * dt; b.b += b.wb * dt; b.c += b.wc * dt;
-        // Wrap only beyond the viewport; no visible path resets or reversals.
-        if (b.y > 1.22) { b.y = -.22; b.x = (Math.sin(b.phase + t) + 1) / 2; b.vy = .035; }
-        if (b.x > 1.25) b.x = -.25;
-        if (b.x < -.25) b.x = 1.25;
-      }
+    function draw() {
+      elements.forEach((el, i) => {
+        const p = decorationPose(i, time.current, window.innerWidth, window.innerHeight, gutter);
+        el.style.transform = `translate3d(${p.x.toFixed(3)}px,${p.y.toFixed(3)}px,0) rotateX(${p.tiltX.toFixed(3)}deg) rotateY(${p.tiltY.toFixed(3)}deg) rotate(${p.rotation.toFixed(3)}deg)`;
+      });
     }
     function active() { return moving && !suspended && !document.hidden && !media?.matches; }
     function loop(now: number) {
-      raf = 0;
-      if (!active()) return;
-      const dt = previous === null ? 0 : Math.min((now - previous) / 1000, .05);
-      previous = now;
-      // Bounded integration is independent of monitor refresh rate.
-      let left = dt;
-      while (left > 0) { const delta = Math.min(left, 1 / 60); step(delta); left -= delta; }
-      draw();
-      raf = window.requestAnimationFrame(loop);
+      raf = 0; if (!active()) return;
+      if (previous !== null) time.current += Math.min((now - previous) / 1000, .05);
+      previous = now; draw(); raf = window.requestAnimationFrame(loop);
     }
     function sync() {
       window.cancelAnimationFrame?.(raf); raf = 0; previous = null;
@@ -74,42 +54,8 @@ export function useNaturalMotion(ref: RefObject<HTMLDivElement | null>, moving: 
       layer!.dataset.running = String(active());
       if (active() && window.requestAnimationFrame) raf = window.requestAnimationFrame(loop);
     }
-    draw(); sync();
-    document.addEventListener('visibilitychange', sync);
-    media?.addEventListener('change', sync);
-    window.addEventListener('resize', draw);
-    return () => {
-      window.cancelAnimationFrame?.(raf);
-      document.removeEventListener('visibilitychange', sync);
-      media?.removeEventListener('change', sync);
-      window.removeEventListener('resize', draw);
-    };
+    measure(); sync();
+    document.addEventListener('visibilitychange', sync); media?.addEventListener('change', sync); window.addEventListener('resize', measure);
+    return () => { window.cancelAnimationFrame?.(raf); document.removeEventListener('visibilitychange', sync); media?.removeEventListener('change', sync); window.removeEventListener('resize', measure); };
   }, [ref, moving, suspended]);
-}
-
-// The reference's curved oval mesh: narrow root, broad shoulders, curled rim.
-// Bake depth-sorted Lambert-shaded faces once; compositor motion preserves the
-// dimensional shading without thousands of SVG path mutations every frame.
-export function cuppedPetalFaces(index: number) {
-  const a = .55 + Math.sin(index * 1.7) * .6, b = Math.cos(index * .8) * .7;
-  const rotate = ([x, y, z]: number[]) => {
-    const yy = y * Math.cos(a) - z * Math.sin(a), zz = y * Math.sin(a) + z * Math.cos(a);
-    return [x * Math.cos(b) + zz * Math.sin(b), yy, -x * Math.sin(b) + zz * Math.cos(b)];
-  };
-  const faces: { d: string; color: string; depth: number }[] = [];
-  for (let k = 0; k < 5; k++) for (let i = 0; i < 8; i++) for (let j = 0; j < 4; j++) {
-    const angle = k * Math.PI * 2 / 5;
-    const p = [[i / 8, j / 4], [(i + 1) / 8, j / 4], [(i + 1) / 8, (j + 1) / 4], [i / 8, (j + 1) / 4]].map(([u, v]) => {
-      const side = v * 2 - 1, r = .10 + u * .94, w = Math.pow(Math.sin(Math.PI * u), .51) * .39 * side;
-      return rotate([Math.cos(angle) * r - Math.sin(angle) * w, Math.sin(angle) * r + Math.cos(angle) * w, .5 * u * u + .17 * side * side * Math.sin(Math.PI * u) - .04]);
-    });
-    const e = p[1].map((v, n) => v - p[0][n]), f = p[3].map((v, n) => v - p[0][n]);
-    const n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
-    const lighting = (n[0] * -.34 + n[1] * -.48 + n[2] * .8) / (Math.hypot(...n) || 1);
-    const back = n[2] < 0;
-    const light = (back ? .82 + Math.abs(lighting) * .11 : .84 + Math.max(0, lighting) * .16) - .07 * (1 - (i + .5) / 8);
-    const color = `rgb(${(back ? [242, 230, 193] : [255, 249, 225]).map(v => Math.round(v * light)).join(',')})`;
-    faces.push({ d: p.map(([x, y, z], i) => { const q = 3.7 / (3.7 - z); return `${i ? 'L' : 'M'}${(x * q).toFixed(3)},${(y * q).toFixed(3)}`; }).join('') + 'Z', color, depth: p.reduce((s, p) => s + p[2], 0) / 4 });
-  }
-  return faces.sort((a, b) => a.depth - b.depth);
 }

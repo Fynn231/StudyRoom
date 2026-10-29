@@ -1,13 +1,13 @@
 import { memo, useRef, type CSSProperties } from 'react';
 import type { FlowerEffect } from './Appearance.js';
-import { cuppedPetalFaces, useNaturalMotion } from './naturalMotion.js';
+import { useNaturalMotion } from './naturalMotion.js';
 
 // 48 flower positions (scattered across the viewport)
 const SCATTER: Array<[number, number]> = Array.from({ length: 48 }, (_, i) => {
   const seed = (salt: number) => { const n = Math.sin((i + 1) * 127.1 + salt * 311.7) * 43758.5453; return (n - Math.floor(n)) * 100; };
   return [seed(1), seed(2)];
 });
-const CUPPED = SCATTER.map((_, i) => cuppedPetalFaces(i));
+
 
 // Star positions for the Moon atmosphere (used only when kind === 'moon')
 const STARS: Array<{ x: number; y: number; s: number }> = [
@@ -61,7 +61,7 @@ export const Flowers = memo(function Flowers({ effect, suspended = false }: { ef
           focusable="false"
           style={{
             '--x': `${x}%`,
-            '--size': `${42 + (i % 4) * 7}px`,
+            '--size': `${28 + (Math.floor(i / 2) % 4) * 4}px`,
             '--duration': `${24 + (i % 7) * 3}s`,
             '--delay': `${-i * 7}s`,
             '--rest': `${y}vh`,
@@ -69,27 +69,23 @@ export const Flowers = memo(function Flowers({ effect, suspended = false }: { ef
         >
           {kind === 'flowers' ? (
             <>
-              {CUPPED[i].map((face, n) => (
-                <path
-                  key={n}
-                  d={face.d}
-                  fill={face.color}
-                  stroke={face.color}
-                  strokeWidth=".012"
-                  strokeLinejoin="round"
-                />
-              ))}
+              <defs><radialGradient id={`petal-${i}`} cx="35%" cy="20%" r="85%"><stop offset="0" stopColor="#fffef1"/><stop offset=".55" stopColor="#f4e8bf"/><stop offset="1" stopColor="#c9b882"/></radialGradient></defs>
+              {[0,72,144,216,288].map(angle => <g key={angle} transform={`rotate(${angle})`}>
+                <path d="M0 .1 C-.22 -.12,-.58 -.42,-.47 -.82 C-.36 -1.2,.32 -1.25,.47 -.84 C.61 -.45,.23 -.08,0 .1Z" fill={`url(#petal-${i})`} stroke="#d4c392" strokeWidth=".018"/>
+                <path d="M-.36 -.82 C-.2 -1.06,.22 -1.08,.36 -.86" fill="none" stroke="#fffef6" strokeWidth=".055" opacity=".85"/>
+                <path d="M0 -.08 Q-.08 -.45,.06 -.82" fill="none" stroke="#c4ad78" strokeWidth=".02" opacity=".4"/>
+              </g>)}
               <ellipse cx="0" cy="0" rx=".145" ry=".105" fill="#b89042" />
             </>
           ) : kind === 'moon' ? (
             <>
               <path
                 d={
-                  i % 4 === 0
+                  Math.floor(i / 2) % 4 === 0
                     ? 'M29 4C9 0 0 22 16 33C24 39 34 34 37 27C16 32 10 13 29 4Z'
                     : 'M20 3L24 15L37 20L24 24L20 37L16 24L3 20L16 16Z'
                 }
-                fill={i % 4 === 0 ? '#f6df9d' : '#edf4ef'}
+                fill={Math.floor(i / 2) % 4 === 0 ? '#f6df9d' : '#edf4ef'}
                 stroke="#67818f"
                 strokeWidth="1"
               />
@@ -97,14 +93,14 @@ export const Flowers = memo(function Flowers({ effect, suspended = false }: { ef
           ) : (
             <>
               <defs><linearGradient id={`leaf-shade-${i}`} x1="0" y1="0" x2="1" y2=".8">
-                <stop offset="0" stopColor={i % 2 ? '#f1bd80' : '#f6d996'} />
-                <stop offset=".42" stopColor={i % 2 ? '#bd7046' : '#d5a34e'} />
+                <stop offset="0" stopColor={Math.floor(i / 2) % 2 ? '#f1bd80' : '#f6d996'} />
+                <stop offset=".42" stopColor={Math.floor(i / 2) % 2 ? '#bd7046' : '#d5a34e'} />
                 <stop offset=".5" stopColor="#f0c882" />
-                <stop offset=".62" stopColor={i % 2 ? '#a45e3a' : '#bd853a'} />
+                <stop offset=".62" stopColor={Math.floor(i / 2) % 2 ? '#a45e3a' : '#bd853a'} />
                 <stop offset="1" stopColor="#785035" />
               </linearGradient></defs>
               <path
-                d={i % 2 ? 'M5 34C0 13 18 4 35 5C36 25 28 39 5 34Z' : 'M6 34L8 24L2 20L13 18L12 7L21 13L30 3L31 17L38 19L29 26L32 33L20 31Z'}
+                d={Math.floor(i / 2) % 2 ? 'M5 34C0 13 18 4 35 5C36 25 28 39 5 34Z' : 'M6 34L8 24L2 20L13 18L12 7L21 13L30 3L31 17L38 19L29 26L32 33L20 31Z'}
                 fill={`url(#leaf-shade-${i})`}
                 stroke="#805436"
                 strokeWidth="1"

@@ -24,7 +24,11 @@ export function AiStudyPanel({ notes, commitment, onChoose }: { notes: GoalNote[
   const active = useRef<AbortController | null>(null); const id = useId();
   const chosen = sources.filter(s => selected.includes(s.id));
   const valid = chosen.length > 0 && chosen.length <= 12 && chosen.reduce((n, s) => n + s.text.length, 0) <= 10000 && /^\d+$/.test(budget) && Number(budget) >= 1 && Number(budget) <= 180;
-  useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
+  useEffect(() => () => {active.current?.abort();active.current=null;}, []);
+  async function checkStatus() {
+    try {const response=await authFetch('/api/ai/status',{cache:'no-store'});if(!response.ok)throw Error();setStatus(await response.json());}catch{setStatus(null);}
+  }
+
   function cancel() { active.current?.abort(); active.current = null; setBusy(false); }
   function reset() { cancel(); setPlan(null); setDone([]); setAnswers([]); setError(''); }
   async function generate(refine: boolean) {
@@ -35,17 +39,18 @@ export function AiStudyPanel({ notes, commitment, onChoose }: { notes: GoalNote[
     try {
       const request = validateRequest({ requestId: crypto.randomUUID(), budgetMinutes: Number(budget), sources: chosen.map(({ id, text }) => ({ id, text })), answers: refine && plan ? plan.questions.flatMap((q, i) => answers[i]?.trim() ? [{ question: q.question, answer: answers[i].trim() }] : []) : [] });
       const response = await authFetch('/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(request), signal: controller.signal, cache: 'no-store' });
-      if (!response.ok) throw Error('Unavailable');
+      if (!response.ok) throw Error(response.status===429?'Free AI is busy or rate-limited. Your current plan is unchanged. Wait a minute and retry; manual planning remains available.':response.status===503?'Free AI is unavailable. Your current plan is unchanged. Manual planning remains available; no paid fallback is enabled.':'Unavailable');
       const result = await response.json(); if (result.requestId !== request.requestId) throw Error('Stale response');
       const next = validatePlan(result.plan, request);
       if (current()) { setPlan(next); setDone([]); setAnswers([]); setStatus({ configured: true, liveVerified: true }); }
-    } catch { if (current()) setError('AI could not return a valid plan. Your current progress is unchanged. Use the offline roadmap or retry explicitly.'); }
+    } catch(e) { if (current()) setError(e instanceof Error && e.message.startsWith('Free AI ')?e.message:'AI could not return a valid plan. Your current progress is unchanged. Use the offline roadmap or retry explicitly.'); }
     finally { clearTimeout(timeout); if (current()) { active.current = null; setBusy(false); } }
   }
   return <section className="ai-study" aria-label="Private AI study planning">
     <h2>AI study companion</h2>
     <p className="quiet-note">Optional AI suggestions, not source-issued tasks. Rough estimates are not guaranteed durations. The offline session roadmap below works without AI or uploads.</p>
-    <p className="quiet-note">{status ? status.configured ? status.liveVerified ? 'AI route: live-verified in this server session.' : 'AI route configured, not yet live-verified.' : 'AI is not configured on this local server.' : 'AI route status unavailable.'}</p>
+    <button onClick={()=>void checkStatus()}>Check AI availability</button>
+    <p className="quiet-note">{status ? status.configured ? status.liveVerified ? 'AI route: live-verified in this server session.' : 'AI route configured, not yet live-verified.' : 'AI is not configured on this server.' : 'AI route status unavailable.'}</p>
     <details><summary>Choose excerpts for AI</summary>
       <p className="quiet-note">Select up to 12 excerpts, 10,000 characters total. Only surviving parsed context / open tasks are offered, up to 40 previews; each is capped at 1,200 characters. Filenames stay here; AI receives excerpt text and random citation IDs, not complete files.</p>
       {sources.map(s => <div className="goal-line" key={s.id}><label className="ai-step-check"><input type="checkbox" checked={selected.includes(s.id)} onChange={() => { reset(); setSelected(ids => ids.includes(s.id) ? ids.filter(i => i !== s.id) : [...ids, s.id]); }} /><span>Excerpt: {s.text}</span></label><small>{s.file} · file {s.fileIndex + 1} · {s.heading} · line {s.line}{s.clipped && ' · clipped preview'}</small></div>)}
@@ -53,7 +58,7 @@ export function AiStudyPanel({ notes, commitment, onChoose }: { notes: GoalNote[
     </details>
     <p>{chosen.length} selected · {chosen.reduce((n, s) => n + s.text.length, 0)}/10,000 characters</p>
     <label htmlFor={`${id}-budget`}>AI plan time budget (minutes)</label><input id={`${id}-budget`} type="number" min="1" max="180" step="1" value={budget} onChange={e => { reset(); setBudget(e.target.value); }} />
-    <p className="quiet-note">By choosing Generate or Refine, your selected excerpts and any answers go to the configured model through this private local server. Model-provider data policies apply. Nothing is sent on import or selection. Back out by deselecting or clearing notes. Source plans and answers stay in tab memory, not room events or device history. Only an explicit Save on this device stores a separate reviewed plan copy, never the answers or original sources.</p>
+    <p className="quiet-note">By choosing Generate or Refine, your selected excerpts and any answers go to the configured model through this server. Hosted requests use OpenRouter’s free-only route; OpenRouter and the selected model provider receive the chosen text. Model-provider data policies apply. Nothing is sent on import or selection. Back out by deselecting or clearing notes. Source plans and answers stay in tab memory, not room events or device history. Only an explicit Save on this device stores a separate reviewed plan copy, never the answers or original sources.</p>
     <button disabled={!valid || busy} onClick={() => void generate(false)}>Generate AI study plan</button>
     {busy && <><span role="status">Generating AI suggestions…</span><button onClick={cancel}>Cancel AI request</button></>}
     {error && <p role="alert" className="error">{error}</p>}

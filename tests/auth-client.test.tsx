@@ -54,7 +54,11 @@ test('synthetic provider lifecycle submits signed-out actions, isolates account 
  rtl.fireEvent.click(q.getByRole('button',{name:'Continue with Google'}));await rtl.waitFor(()=>assert.equal(google,1));
  const makeSession=(id:string,refresh=0)=>({user:{id,email:'synthetic@example.invalid',user_metadata:{}},access_token:`e30.${Buffer.from(JSON.stringify({session_id:'session-'+id,refresh})).toString('base64url')}.synthetic`,expires_at:Math.floor(Date.now()/1000)+60});
  const change=async(id:string,refresh=0)=>{session=makeSession(id,refresh);await rtl.act(async()=>notify('SIGNED_IN',session));await rtl.waitFor(()=>assert.ok(q.getByLabelText('Your session intention')));};
+ session={...makeSession('expired'),expires_at:Math.floor(Date.now()/1000)-1};
+ await rtl.act(async()=>notify('SIGNED_IN',session));
+ await rtl.waitFor(()=>assert.match(view.container.textContent??'',/Your session expired/));
  await change('A');
+ assert.equal(view.container.textContent?.includes('Your session expired'),false,'fresh sign-in clears an old expiry banner');
  let draft=q.getByLabelText('Your session intention') as HTMLTextAreaElement;
  const textSetter=Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype,'value')!.set!;textSetter.call(draft,'PRIVATE A');rtl.fireEvent.input(draft);
  // React change handling across test realms is not needed to prove DOM reset;

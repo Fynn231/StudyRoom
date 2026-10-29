@@ -124,3 +124,8 @@ footer { margin-block: 24px; border: 1px solid var(--line); font-size: .75rem; }
 .atmosphere-preview[data-preview=orbital-ash]::after { background: repeating-radial-gradient(ellipse at 40% 50%,transparent 0 9px,#aab0b9aa 10px 11px,transparent 12px 15px); transform: rotate(-30deg) scaleY(.6); }
 .atmosphere-options .atmosphere-chips { display: none; }
 @media (max-width: 1050px) { .atmosphere-preview { flex-basis: 40px; width: 40px; } }
+
+.spotify-device-player { padding: 20px; margin-block: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.spotify-device-player h3 { margin: 0 0 8px; font-size: 1.2rem; overflow-wrap: anywhere; }
+.spotify-device-player p { font-size: .85rem; }
+.spotify-device-player input[type=range] { padding: 0; accent-color: var(--accent); }

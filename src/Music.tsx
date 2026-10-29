@@ -76,9 +76,10 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
     <div className="music-provider" role="radiogroup" aria-label="Music provider">
       {([['spotify', 'Spotify'], ['apple', 'Apple Music'], ['silent', 'Silent mode']] as const).map(([value, label]) => <label key={value} className="music-provider-option"><input type="radio" name={`${uid}-provider`} value={value} checked={provider === value} onChange={() => chooseProvider(value)} />{label}</label>)}
     </div>
+    {provider !== 'silent' && <ConnectedMusic key={provider} provider={provider} expanded={lockIn} embeddedActive={!!active} selection={active?.url ?? selected ?? saved ?? (provider === 'spotify' ? featuredSpotify : null)} onEnable={() => setLoaded(null)} />}
     {provider === 'silent' && <p className="quiet-note" role="status">Silent focus selected. No player is loaded and no music provider is contacted.</p>}
     {provider === 'spotify' && <>
-      {lockIn && <p className="featured-track">ALTERED OBSIDIAN — AZALI</p>}
+      {lockIn && <><p className="featured-track">ALTERED OBSIDIAN — AZALI</p><p className="quiet-note">For full in-page playback, use the Spotify account player. The official embed may offer a preview; Spotify controls its availability.</p></>}
       {(!active || active.provider !== 'spotify' || active.url !== featuredSpotify) && <button onClick={() => { autoFeatured.current = false; setLoaded({ provider: 'spotify', url: featuredSpotify }); }}>Load featured Spotify player</button>}
       {active?.provider === 'spotify' && <div className="spotify-player"><iframe title={playerTitle} src={`${active.url.replace('open.spotify.com/', 'open.spotify.com/embed/')}?utm_source=generator`} width="100%" height={active.url.includes('/track/') ? 152 : 352} allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" allowFullScreen referrerPolicy="no-referrer" /></div>}
       {link && <div className="selected-music"><a className="launch-link" href={link} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open in Spotify (new tab)</a>{active?.provider === 'spotify' && <button onClick={() => setLoaded(null)}>Unload Spotify player</button>}</div>}
@@ -106,7 +107,6 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
         {selected && <div className="selected-music"><p>{selected}</p><button onClick={() => { autoFeatured.current = false; setLoaded({ provider: 'apple', url: selected }); setMessage(''); }}>Load selected Apple Music player</button><button onClick={() => { setDraft(''); setSelected(null); setLoaded(null); }}>Clear Apple Music selection</button></div>}
       </details>
     </>}
-    {provider !== 'silent' && <ConnectedMusic key={provider} provider={provider} embeddedActive={!!active} selection={active?.url ?? selected ?? saved ?? (provider === 'spotify' ? featuredSpotify : null)} onEnable={() => setLoaded(null)} />}
     <div className="music-prefs-actions"><button onClick={remember}>Remember my soundtrack on this device</button>{message && <p className="quiet-note" role="status">{message}</p>}</div>
     <p className="quiet-note">Preferences stay in this browser. Music is personal: it is never broadcast to a study room, and peers never receive it. Preferences save provider choices and links only, never account tokens or secrets.</p>
   </details>;

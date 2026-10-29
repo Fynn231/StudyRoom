@@ -26,6 +26,7 @@ function LiveSessionGate({ children }: { children: ReactNode }) {
 export function AuthGate({ children }: { children?: ReactNode }) {
   const { config, session, error, loading, signInWithEmail, signInWithGoogle, signOut } = useAuth();
   const [message, setMessage] = useState(''), [busy, setBusy] = useState(false);
+  useEffect(() => { if (session) setMessage(''); }, [session]);
   async function run(action: () => Promise<void>, success = '') {
     setBusy(true); setMessage('');
     try { await action(); setMessage(success); }

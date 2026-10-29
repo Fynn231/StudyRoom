@@ -103,6 +103,7 @@ export function AuthProvider({ children, clientFactory = createSupabaseClient }:
     const apply = (current: Session | null) => {
       if (cancelled || (current && signingOut.current)) return;
       setAuthSession(current, identity(current)); setSession(current);
+      if (current) setError(null);
     };
     void (async () => {
       try {

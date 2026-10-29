@@ -7,7 +7,7 @@ import { Music } from '../src/Music.js';
 test('synthetic SDK events, not connect or Play responses, determine playback; Silent tears down device', async t => {
   const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://127.0.0.1:4173' });
   Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, localStorage: dom.window.localStorage, IS_REACT_ACT_ENVIRONMENT: true });
-  const listeners = new Map<string, (event: any) => void>(); let disconnected = 0; let paused = 0; let played = false; let connected = 0;
+  const listeners = new Map<string, (event: any) => void>(); let disconnected = 0; let paused = 0; let played = false; let connected = 0; let sought = -1; let volume = -1;
   class Player {
     constructor(private options: any) {}
     addListener(name: string, fn: (event: any) => void) { listeners.set(name, fn); }
@@ -15,6 +15,8 @@ test('synthetic SDK events, not connect or Play responses, determine playback; S
     async activateElement() {}
     async pause() { paused++; }
     async togglePlay() {}
+    async seek(position:number) { sought=position; }
+    async setVolume(value:number) { volume=value; }
     disconnect() { disconnected++; }
   }
   Object.assign(dom.window, { Spotify: { Player } });
@@ -36,8 +38,12 @@ test('synthetic SDK events, not connect or Play responses, determine playback; S
   rtl.fireEvent.click(q.getByRole('button', { name: 'Play selected on Spotify device', hidden: true }));
   await rtl.waitFor(() => assert.equal(played, true));
   assert.equal(view.container.textContent!.includes('Playing on this Spotify device.'), false);
-  await rtl.act(async () => listeners.get('player_state_changed')!({ paused: false }));
+  await rtl.act(async () => listeners.get('player_state_changed')!({ paused: false, position:10000, duration:180000, track_window:{current_track:{name:'Synthetic study track',artists:[{name:'Synthetic artist'}]}} }));
   assert.ok(view.container.textContent!.includes('Playing on this Spotify device.'));
+  assert.ok(q.getByText('Synthetic study track'));
+  rtl.fireEvent.change(q.getByLabelText('Track position'),{target:{value:'30000'}});
+  rtl.fireEvent.change(q.getByLabelText('Spotify volume'),{target:{value:'0.25'}});
+  assert.equal(sought,30000); assert.equal(volume,.25);
   rtl.fireEvent.click(q.getByRole('button', { name: 'Load featured Spotify player', hidden: true }));
   await rtl.waitFor(() => assert.ok(disconnected > 0, 'loading an embed tears down the connected device'));
   const beforeSilent = disconnected;

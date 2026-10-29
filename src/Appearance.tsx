@@ -24,7 +24,7 @@ const EFFECT_THEMES: Record<string, { still: FlowerEffect; moving: FlowerEffect;
 
 export function Appearance({ onChange, onEffectChange, onMotionChange, lockedPicker }: { onChange: (background: string | undefined) => void; onEffectChange: (effect: FlowerEffect) => void; onMotionChange?: (colors: readonly string[] | null) => void; lockedPicker?: ReactNode }) {
   const c = useCopy();
-  const [falling, setFalling] = useState(false);
+  const [falling, setFalling] = useState(true);
   const [motionOn, setMotionOn] = useState(false);
 
 
@@ -54,7 +54,7 @@ export function Appearance({ onChange, onEffectChange, onMotionChange, lockedPic
     <p className="quiet-note">Only your view, in Solo or Party. Stays in this tab until reload; never sent to the room.</p>
     <div className="appearance-presets" role="group" aria-label="Color presets">
       {PRESETS.map(preset => <button key={preset.name} aria-pressed={selected === preset.name} onClick={() => {
-        setFalling(false); onEffectChange(EFFECT_THEMES[preset.name]?.still ?? 'none');
+        setFalling(true); onEffectChange(EFFECT_THEMES[preset.name]?.moving ?? 'none');
         setSelected(preset.name); syncColors([...preset.colors]);
         onChange(customGradient(preset.colors[0], preset.colors[1])!);
       }}><span aria-hidden="true" className="preset-swatch" style={{ background: customGradient(preset.colors[0], preset.colors[1])! }} />{preset.name}</button>)}
@@ -64,7 +64,7 @@ export function Appearance({ onChange, onEffectChange, onMotionChange, lockedPic
         <input type="checkbox" checked={falling} onChange={e => { setFalling(e.target.checked); onEffectChange(e.target.checked ? EFFECT_THEMES[selected].moving : EFFECT_THEMES[selected].still); }} />
         {EFFECT_THEMES[selected].label}
       </label>
-      <p className="quiet-note">Original background accents. Motion is off by default. Reduced motion keeps them still; hidden tabs pause. Only in your view.</p>
+      <p className="quiet-note">Balanced background accents. Motion starts automatically. You can pause it here. Reduced motion keeps them still; hidden tabs pause. Only in your view.</p>
     </div>}
     <label className="storage-option motion-option">
       <input type="checkbox" checked={motionOn} onChange={e => setMotionOn(e.target.checked)} />
