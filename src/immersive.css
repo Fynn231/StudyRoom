@@ -265,3 +265,8 @@
     opacity: 1;
   }
 }
+
+.brand-nav { display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.home-link { font-size:.85rem; padding:8px 14px; }
+.session-assistance { scroll-margin-top:24px; }
+@media(max-width:600px) { .brand-nav { gap:8px; } .home-link { padding-inline:10px; } }
