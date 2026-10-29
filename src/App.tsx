@@ -1,6 +1,7 @@
 import { inviteCode, roomInvite, loopbackInvite } from './invite.js';
 import { usePrivateStorage } from './privateStorage.js';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { flushSync } from 'react-dom';
 import { io, type Socket } from 'socket.io-client';
 import { useOptionalAuth } from './auth';
 import type { Reply, RoomState } from './protocol.js';
@@ -9,6 +10,8 @@ import { GoalNotes } from './GoalNotesPanel.js';
 import { HowStudyRoomWorks } from './HowStudyRoomWorks.js';
 import { SessionIntention } from './SessionIntention.js';
 
+import { Ambience } from './Ambience.js';
+import { WelcomeScene, useWelcome } from './WelcomeScene.js';
 import { Music } from './Music.js';
 import { FocusSetup } from './FocusSetup.js';
 import { CopyContext, lockedCopy, normalCopy } from './lockInCopy.js';
@@ -32,9 +35,10 @@ import { NormalGradient } from './NormalGradient.js';
 import { LockedAtmosphere, AtmospherePicker, atmosphereStyle, readAtmosphere, saveAtmosphere, type AtmosphereId } from './LockedAtmospheres.js';
 
 type Snapshot = { room: RoomState; receivedAt: number };
-export function App({ endpoint }: { endpoint?: string }) {
+export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?: boolean }) {
   const storage = usePrivateStorage();
   const sessionStorage = usePrivateStorage('sessionStorage');
+  const {open:welcomeOpen,leaving:welcomeLeaving,show:showWelcome,close:closeWelcome}=useWelcome(welcome);
   const [background, setBackground] = useState<string | undefined>();
   const [motionPalette, setMotionPalette] = useState<readonly string[] | null>(null);
   const [flowerEffect, setFlowerEffect] = useState<FlowerEffect>('none');
@@ -81,11 +85,23 @@ export function App({ endpoint }: { endpoint?: string }) {
   const recordedRef = useRef<string | null>(null);
   const lockInTouched = useRef(false);
   const brandPresses = useRef<number[]>([]);
-  function exitLockIn() { lockInTouched.current = true; setLockIn(false); }
+  const modeTransition=useRef<ViewTransition|null>(null),modeEpoch=useRef(0);
+  useEffect(()=>()=>{modeEpoch.current++;modeTransition.current?.skipTransition();},[]);
+  function changeMode(next:boolean) {
+    const epoch=++modeEpoch.current;
+    modeTransition.current?.skipTransition();
+    const apply=()=>{setLockIn(next);if(next)setMusicActivation(n=>n+1);};
+    if(!document.startViewTransition||document.hidden||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){apply();return;}
+    try {
+      const transition=document.startViewTransition(()=>{if(epoch===modeEpoch.current)flushSync(apply);});modeTransition.current=transition;
+      void transition.ready.catch(()=>{});
+      void transition.finished.finally(()=>{if(modeTransition.current===transition)modeTransition.current=null;}).catch(()=>{});
+    }catch{apply();}
+  }
+  function exitLockIn() { lockInTouched.current = true; changeMode(false); }
   function revealLockIn() {
     lockInTouched.current = true;
-    setLockIn(true);
-    setMusicActivation(n => n + 1);
+    changeMode(true);
   }
   function tapBrand() {
     const now = performance.now();
@@ -270,7 +286,7 @@ export function App({ endpoint }: { endpoint?: string }) {
     if (saved.ok) markCreatorNoteSeen(storage);
   }, [remaining]);
 
-  return <CopyContext.Provider value={c}><div className={`room-backdrop${lockIn ? ' lock-in-mode' : ''}`} style={lockIn ? atmosphereStyle(atmosphere) : { background }}><a className="skip-link" href="#main">Skip to content</a>{lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}{motionPalette && <NormalGradient colors={motionPalette} suspended={lockIn} />}{flowerEffect !== 'none' && <Flowers effect={flowerEffect} suspended={lockIn} />}<div className="app-shell" inert={completion ? true : undefined}>
+  return <CopyContext.Provider value={c}><div className={`room-backdrop${lockIn ? ' lock-in-mode' : ''}`} style={{...atmosphereStyle(atmosphere),background,'--normal-background':background??'linear-gradient(to bottom right,#ffffff 0%,#80a879 100%)'} as CSSProperties}><div className="environment-wash" aria-hidden="true" data-locked={lockIn}/><a className="skip-link" href="#main">Skip to content</a>{lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}{motionPalette && <NormalGradient colors={motionPalette} suspended={lockIn} />}{flowerEffect !== 'none' && <Flowers effect={flowerEffect} suspended={lockIn} />}<div className="app-shell" inert={completion || welcomeOpen ? true : undefined}>
     <header className="masthead"><button className="wordmark" onClick={tapBrand}>{c('brand', 'study room')}<span className="wordmark-dot" aria-hidden="true">.</span></button><span className="connection" role="status"><i aria-hidden="true" className={connected ? 'live' : ''} />{!party ? 'Solo · private in this tab' : connected ? (auth?.config?.required ? 'Party connected · signed in' : 'Party connected · local demo') : 'Disconnected · shared controls unavailable'}</span></header>
     <main id="main" tabIndex={-1}>
 
@@ -301,7 +317,7 @@ export function App({ endpoint }: { endpoint?: string }) {
         {room && <aside className="people-surface" aria-labelledby={`${uid}-people-title`}><p className="eyebrow">GOOD COMPANY, QUIETLY</p><h2 id={`${uid}-people-title`}>At the table <span>({room.participants.length})</span></h2><p className="quiet-note" role="status">{room.locked ? 'Admission locked · existing participants stay.' : 'Admission open.'} {room.participants.length}/{room.maxParticipants ?? 16} seats. {room.hostId ? (room.hostId === selfId ? 'You are the host.' : 'Only the host can lock admission or remove people.') : 'Host offline · no automatic promotion. Everyone still at the table can operate the shared timer.'}</p>{room.hostId === selfId && <button disabled={disabled} onClick={() => void send('room:lock', { locked: !room.locked })}>{room.locked ? 'Unlock admission' : 'Lock admission'}</button>}<ul className="people">{room.participants.map(p => <li key={p.id}><span className="avatar" aria-hidden="true">{p.name.charAt(0).toUpperCase()}</span><div><strong>{p.name}</strong>{p.id === selfId && <small> · you</small>}<p>{p.intention ?? 'Here to focus'}</p>{p.id === room.hostId && <small>Host</small>}{room.hostId === selfId && p.id !== selfId && <button disabled={disabled} aria-label={`Remove ${p.name}`} onClick={() => void send('room:remove', { participantId: p.id })}>Remove</button>}</div></li>)}</ul><p className="quiet-note">Presence reflects the last server update; disconnected people are removed when the server detects the loss. Rejoining creates a new presence; sharing is never restored automatically. A lock blocks new connections, including guests rejoining after disconnect. Removal is not a ban; lock admission to prevent re-entry. {auth?.config?.required ? 'Host ownership belongs to the verified creator account, including after reconnect; it is never transferred automatically.' : 'Local demo: host permissions belong only to the original anonymous socket. Disconnecting or leaving loses those controls, with no promotion; create a new room if needed.'}</p></aside>}
         <section className="intention-surface" aria-labelledby={`${uid}-intention-title`}><div><p className="eyebrow">{c('intentionEyebrow', 'ONE SMALL COMMITMENT')}</p><h2 id={`${uid}-intention-title`}>{c('intentionTitle', 'What are you making space for?')}</h2><p id={`${uid}-privacy-help`}>Your draft stays in this tab, not on the server. Only “Share with room” sends it to others. Editing a shared draft doesn’t update its shared version.</p></div><div><label htmlFor={`${uid}-intention`}>{c('intentionLabel', 'Your session intention')}</label><textarea id={`${uid}-intention`} aria-describedby={`${uid}-privacy-help ${uid}-intention-help${intentionError ? ` ${uid}-intention-error` : ''}`} aria-invalid={!!intentionError} maxLength={240} rows={3} value={draft} onChange={e => { setDraft(e.target.value); setIntentionError(''); }} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && !composing.current && e.keyCode !== 229) { e.preventDefault(); planSession(); } }} placeholder={c('intentionPlaceholder', 'For this session, I’ll…')} /><p className="quiet-note" id={`${uid}-intention-help`}>Enter to open optional planning help · Shift+Enter for a new line. Focus starts only with Start focus.</p>{intentionError && <p className="error" role="alert" id={`${uid}-intention-error`}>{intentionError}</p>}<button onClick={planSession}>{c('planSession', 'Plan session')}</button><div className="intention-actions"><span className="sharing-state">{shared ? c('sharedState', 'A version is shared with the room') : c('privateState', 'Private · only in this tab')}</span>{room && <button disabled={disabled || !draft.trim()} onClick={() => void send('intention:share', { text: draft })}>{shared ? c('updateIntention', 'Update shared intention') : c('shareIntention', 'Share with room')}</button>}{shared && <button disabled={disabled} onClick={() => void send('intention:withdraw', {})}>{c('withdrawIntention', 'Withdraw sharing')}</button>}</div><p className="quiet-note">Withdrawal removes your shared version, not anyone else’s. It cannot erase what others have already seen.</p></div></section>
       </div>
-      <div className="workspace-tools"><Music lockIn={lockIn} activation={musicActivation} /><FocusSetup /><HowStudyRoomWorks /></div>
+      <div className="workspace-tools"><Music lockIn={lockIn} activation={musicActivation} /><Ambience locked={lockIn} onWelcome={showWelcome}/><FocusSetup /><HowStudyRoomWorks /></div>
       <GoalNotes commitment={draft} onChoose={setDraft}><SessionIntention submitted={submitted} availableMinutes={fresh ? durationMinutes : timer.durationMs / 60000} onDismiss={() => setSubmitted(null)} /></GoalNotes>
       <section className="chime-controls" aria-label="Focus chime controls">
         <label className="storage-option"><input type="checkbox" checked={chimeEnabled} onChange={e => { soundGeneration.current++; chimeAllowed.current = e.target.checked; setChimeEnabled(e.target.checked); if (!e.target.checked) chime.current?.cancel(); }} />{c('chimeEnable', 'Enable focus chime')}</label>
@@ -314,5 +330,5 @@ export function App({ endpoint }: { endpoint?: string }) {
       <PrivateReview commitment={draft} onFinish={() => setPersonal(previous => ({ ...previous, remainingMs: previous.endsAt === null ? previous.remainingMs : Math.max(0, previous.endsAt - performance.now()), endsAt: null }))} onNew={() => setPersonal(previous => ({ ...previous, remainingMs: previous.durationMs, endsAt: null }))} />
       {party && !connected && <button className="reconnect" onClick={() => socket.current?.connect()}>Retry party connection</button>}
     </main><footer>{auth?.config?.required ? 'Signed-in StudyRoom. ' : 'Local demo. '}Your own work, with room for company. Optional Spotify playback contacts Spotify.</footer>
-  </div><SessionComplete open={!!completion} record={completion} locked={lockIn} firstVisit={completionFirst} storageError={storageError} onClose={() => setCompletion(null)} /></div></CopyContext.Provider>;
+  </div>{welcomeOpen && <WelcomeScene leaving={welcomeLeaving} onEnter={()=>closeWelcome(true)} onSkip={()=>closeWelcome(false)}/>}<SessionComplete open={!!completion} record={completion} locked={lockIn} firstVisit={completionFirst} storageError={storageError} onClose={() => setCompletion(null)} /></div></CopyContext.Provider>;
 }

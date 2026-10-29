@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 async function ready(page: Page) {
- await page.goto('/'); await expect(page.getByRole('timer')).toBeVisible();
+ await page.goto('/'); const welcome=page.getByRole('button',{name:'Skip welcome',exact:true});await Promise.race([welcome.waitFor(),page.getByRole('timer').waitFor()]);if(await welcome.isVisible())await welcome.click();await expect(page.getByRole('timer')).toBeVisible();
  await page.getByLabel('Enable focus chime', {exact:true}).uncheck();
 }
 async function summary(page: Page, name: string) { await page.locator('summary').filter({hasText: new RegExp(`^${name}$`)}).click(); }

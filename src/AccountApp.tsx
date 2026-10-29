@@ -4,5 +4,5 @@ import { StorageAccountProvider } from './privateStorage.js';
 export function AccountApp() {
   const { config, session } = useAuth();
   const key = config?.required ? sessionIdentity(session) : 'local';
-  return <StorageAccountProvider key={key} account={config?.required ? session!.user.id : null}><App /></StorageAccountProvider>;
+  return <StorageAccountProvider key={key} account={config?.required ? session!.user.id : null}><App welcome /></StorageAccountProvider>;
 }

@@ -9,6 +9,7 @@ import './lock-in-mode.css';
 import './locked-atmospheres.css';
 import './normal-atmosphere.css';
 import './workspace.css';
+import './immersive.css';
 
 
 createRoot(document.getElementById('root')!).render(
