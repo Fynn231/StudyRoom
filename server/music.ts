@@ -53,7 +53,7 @@ export function createMusicHandler(config = musicConfig(), deps: { fetch?: typeo
         }
       }
       if (path === '/api/music/status' && req.method === 'GET') {
-        send(200, { spotify: { ready, authorized: !!session?.token, blocker: ready ? null : 'Configure SPOTIFY_CLIENT_ID (32 hex characters) and MUSIC_ORIGIN (http://127.0.0.1:PORT); register /api/music/spotify/callback at that origin.', expiresAt: session?.token ? session.until : null }, apple: { ready: false, blocker: 'Apple connected playback is disabled: no verified MusicKit media identifier, Media Services signing key or developer-token issuer is configured. Official Apple embeds remain available.' } }); return;
+        send(200, { spotify: { ready, authorized: !!session?.token, blocker: ready ? null : deps.auth ? `Configure SPOTIFY_CLIENT_ID (32 hex characters) on the server and register ${deps.auth.publicOrigin}/api/music/spotify/callback in the Spotify app. Premium and approved app access are required.` : 'Configure SPOTIFY_CLIENT_ID (32 hex characters) and MUSIC_ORIGIN (http://127.0.0.1:PORT); register /api/music/spotify/callback at that origin.', expiresAt: session?.token ? session.until : null }, apple: { ready: false, blocker: 'Apple connected playback is disabled: no verified MusicKit media identifier, Media Services signing key or developer-token issuer is configured. Official Apple embeds remain available.' } }); return;
       }
       if (!ready) { send(503, { error: 'Connected music is not configured. Official embeds remain available.' }); return; }
       if (path === '/api/music/spotify/begin' && req.method === 'POST') {
