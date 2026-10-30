@@ -36,6 +36,7 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
   const [message, setMessage] = useState('');
   const previousActivation = useRef(0);
   const autoFeatured = useRef(false);
+  const accountPlayback = useRef(false);
   const provider = prefs.provider;
   const saved = provider === 'apple' ? prefs.apple : prefs.spotify;
 
@@ -44,7 +45,7 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
     previousActivation.current = activation;
     if (activation <= 0) return;
     if (panel.current) panel.current.open = true;
-    if (provider === 'silent' || loaded) return;
+    if (provider === 'silent' || loaded || accountPlayback.current) return;
     if (provider === 'apple' && prefs.apple) setLoaded({ provider: 'apple', url: prefs.apple });
     if (provider === 'spotify') { autoFeatured.current = !prefs.spotify; setLoaded({ provider: 'spotify', url: prefs.spotify ?? featuredSpotify }); }
   }, [activation, provider, prefs.apple, prefs.spotify, loaded]);
@@ -76,7 +77,7 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
     <div className="music-provider" role="radiogroup" aria-label="Music provider">
       {([['spotify', 'Spotify'], ['apple', 'Apple Music'], ['silent', 'Silent mode']] as const).map(([value, label]) => <label key={value} className="music-provider-option"><input type="radio" name={`${uid}-provider`} value={value} checked={provider === value} onChange={() => chooseProvider(value)} />{label}</label>)}
     </div>
-    {provider !== 'silent' && <ConnectedMusic key={provider} provider={provider} expanded={lockIn} embeddedActive={!!active} selection={active?.url ?? selected ?? saved ?? (provider === 'spotify' ? featuredSpotify : null)} onEnable={() => setLoaded(null)} />}
+    {provider !== 'silent' && <ConnectedMusic key={provider} provider={provider} expanded={lockIn} embeddedActive={!!active} selection={selected ?? active?.url ?? saved ?? (provider === 'spotify' ? featuredSpotify : null)} onEnable={() => {accountPlayback.current=true;setLoaded(null);}} onDisable={()=>{accountPlayback.current=false;}} />}
     {provider === 'silent' && <p className="quiet-note" role="status">Silent focus selected. No player is loaded and no music provider is contacted.</p>}
     {provider === 'spotify' && <>
       {lockIn && <><p className="featured-track">ALTERED OBSIDIAN — AZALI</p><p className="quiet-note">For full in-page playback, use the Spotify account player. The official embed may offer a preview; Spotify controls its availability.</p></>}
@@ -85,7 +86,7 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
       {link && <div className="selected-music"><a className="launch-link" href={link} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open in Spotify (new tab)</a>{active?.provider === 'spotify' && <button onClick={() => setLoaded(null)}>Unload Spotify player</button>}</div>}
       {active?.provider === 'spotify' && <p className="quiet-note">Blank or silent? Open in Spotify above. Loading does not confirm playback. Unload stops this player.</p>}
       {lockIn && <p className="quiet-note">Esc steps out when this page has focus; Exit Lock In Mode also works after focusing Spotify. Reload restores the theme only, not the player.</p>}
-      <details className="music-custom"><summary>Choose another Spotify link</summary>
+      <details className="music-custom"><summary>Add a playlist or Spotify link</summary>
         <form onSubmit={e => { e.preventDefault(); const next = spotifyLink(draft); if (!next) { setError('Use an HTTPS open.spotify.com track, album or playlist link with a 22-character content ID, without credentials or a custom port.'); return; } setSelected(next); setError(''); setPrefs(p => ({ ...p, spotify: next })); }}>
           <label htmlFor={`${uid}-spotify`}>Spotify link</label><input id={`${uid}-spotify`} maxLength={2048} autoComplete="off" value={draft} onChange={e => { setDraft(e.target.value); setSelected(null); setError(''); }} placeholder="https://open.spotify.com/playlist/…" />
           <button type="submit">Select music link</button>
@@ -108,6 +109,6 @@ export function Music({ lockIn = false, activation = 0 }: { lockIn?: boolean; ac
       </details>
     </>}
     <div className="music-prefs-actions"><button onClick={remember}>Remember my soundtrack on this device</button>{message && <p className="quiet-note" role="status">{message}</p>}</div>
-    <p className="quiet-note">Preferences stay in this browser. Music is personal: it is never broadcast to a study room, and peers never receive it. Preferences save provider choices and links only, never account tokens or secrets.</p>
+    <p className="quiet-note">Preferences stay in this browser. Playback stays personal. Listening status is shared only when you explicitly choose to share it with your room. Preferences save provider choices and links only, never account tokens or secrets.</p>
   </details>;
 }
