@@ -36,6 +36,7 @@ test("read-only Spotify connection fetches genuine bounded activity, shares only
         })
       : Response.json(true);
   const shared: any[] = [];
+  let grantedScope = "user-read-currently-playing";
   let responseStatus = 200,
     malformed = false;
   const handler = createMusicHandler(
@@ -49,7 +50,7 @@ test("read-only Spotify connection fetches genuine bounded activity, shares only
             access_token: "SYNTHETIC_ONLY",
             token_type: "Bearer",
             expires_in: 3600,
-            scope: "user-read-currently-playing",
+            scope: grantedScope,
           });
         assert.equal(
           input,
@@ -161,6 +162,30 @@ test("read-only Spotify connection fetches genuine bounded activity, shares only
     );
     await call("/api/music/spotify/hide-listening", "POST", target);
     assert.equal(shared.at(-1)[1], null);
+    const addPlayback = await call("/api/music/spotify/begin", "POST");
+    assert.equal(addPlayback.status, 200);
+    const combinedUrl = new URL((await addPlayback.json()).url);
+    const combined = combinedUrl.searchParams.get("scope")!.split(" ");
+    assert.equal(combined.includes("streaming"), true);
+    assert.equal(combined.includes("user-read-currently-playing"), true);
+    cookie = addPlayback.headers.get("set-cookie")!.split(";")[0];
+    grantedScope = combined.join(" ");
+    const fullCallback = await call(
+      "/api/music/spotify/callback?code=combined&state=" +
+        combinedUrl.searchParams.get("state"),
+    );
+    assert.equal(fullCallback.status, 303);
+    cookie = fullCallback.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await call("/api/music/spotify/token", "POST")).status, 200);
+    const addListening = await call(
+      "/api/music/spotify/begin?purpose=listening",
+      "POST",
+    );
+    const retained = new URL((await addListening.json()).url).searchParams
+      .get("scope")!
+      .split(" ");
+    assert.equal(retained.includes("streaming"), true);
+    assert.equal(retained.includes("user-read-currently-playing"), true);
   } finally {
     handler.close();
     await new Promise<void>((r) => server.close(() => r()));

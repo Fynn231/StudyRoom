@@ -61,7 +61,11 @@ export function createMusicHandler(config = musicConfig(), deps: { fetch?: typeo
         if (sessions.size >= 128) { send(429, { error: 'Too many music sessions; retry after expiry.' }); return; }
         if (id && session) sessions.delete(id);
         const state = randomBytes(32).toString('base64url'); const verifier = randomBytes(64).toString('base64url');
-        const requestedScopes=url.searchParams.get('purpose')==='listening'?'user-read-currently-playing':scopes;
+        // Adding listening/playback keeps permissions the user already connected;
+        // the new OAuth page still asks them to review any additional access.
+        const existingScopes=session?.token?(session.scope??scopes):'';
+        const listening=url.searchParams.get('purpose')==='listening';
+        const requestedScopes=listening?(existingScopes.split(' ').includes('streaming')?scopes+' user-read-currently-playing':'user-read-currently-playing'):(existingScopes.split(' ').includes('user-read-currently-playing')?scopes+' user-read-currently-playing':scopes);
         const next = put({ scope:requestedScopes, owner: identity ? { subject: identity.user.id, sessionId: identity.user.sessionId, accessToken: identity.token } : undefined, state, verifier, until: now() + 300_000 }); setCookie(res, next, 300);
         const authorization = new URL('https://accounts.spotify.com/authorize');
         authorization.search = new URLSearchParams({ response_type: 'code', client_id: config.clientId!, redirect_uri: redirect, scope: requestedScopes, state, code_challenge_method: 'S256', code_challenge: createHash('sha256').update(verifier).digest('base64url') }).toString();
