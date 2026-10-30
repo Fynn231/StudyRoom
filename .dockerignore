@@ -10,6 +10,10 @@
 !public/**
 !server/
 !server/*.ts
+!extension/
+!extension/**
+!scripts/
+!scripts/*.mjs
 # Explicit excludes also protect against future allowlist expansions.
 **/.env*
 **/*credential*
