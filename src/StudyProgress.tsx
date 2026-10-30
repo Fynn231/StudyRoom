@@ -25,6 +25,7 @@ export function StudyProgress({ children, commitment, onChoose }: { children: Re
   catch(e) { setPlans([]);setActive(null);blocked.current=true; loaded.current=true;setError(e instanceof Error?e.message:'Saved plans unavailable.');setMessage('');return null; }
  }
  useEffect(()=>{const listener=(e:StorageEvent)=>{if(loaded.current && (e.key===planStorageKey || e.key===null)){setActive(null);read(true);}};window.addEventListener('storage',listener);return()=>window.removeEventListener('storage',listener);},[]);
+ useEffect(()=>{const resume=()=>{const values=read();if(values?.length)setActive([...values].sort((a,b)=>b.updatedAt-a.updatedAt)[0]);};window.addEventListener('studyroom:resume-last-plan',resume);return()=>window.removeEventListener('studyroom:resume-last-plan',resume);},[]);
  function commit(next:SavedPlan[], success:string) {
   try { if(!loaded.current || blocked.current) throw Error('Saved plans are unavailable. Nothing was overwritten. Reopen the library or deliberately clear saved plans.'); raw.current=writeSavedPlans(storage,raw.current,next);setPlans(next);setError('');setMessage(success);return true; }
   catch(e) {setMessage('');setError(`Could not update saved plans. ${e instanceof Error?e.message:'Device storage is unavailable or full.'} No success is assumed; reopen the library to check.`);return false;}

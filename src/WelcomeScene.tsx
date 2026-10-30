@@ -2,17 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { usePrivateStorage } from "./privateStorage.js";
 export function useWelcome(enabled: boolean) {
   const storage = usePrivateStorage();
-  const [open, setOpen] = useState(() => {
-    try {
-      return (
-        enabled &&
-        !new URL(window.location.href).searchParams.has("room") &&
-        storage.getItem("studyroom.welcome.seen") !== "1"
-      );
-    } catch {
-      return enabled;
-    }
-  });
+  const [returning,setReturning]=useState(()=>{try{return storage.getItem('studyroom.welcome.seen')==='1';}catch{return false;}});
+  const [open,setOpen]=useState(()=>enabled&&!new URL(window.location.href).searchParams.has('room'));
   const [leaving, setLeaving] = useState(false);
   const dismissed = useRef(false),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -28,6 +19,7 @@ export function useWelcome(enabled: boolean) {
       /* Entry never depends on storage permission. */
     }
     const finish = () => {
+      setReturning(true);
       dismissed.current = true;
       setOpen(false);
       setLeaving(false);
@@ -42,10 +34,12 @@ export function useWelcome(enabled: boolean) {
   }
   return {
     open,
+    returning,
     leaving,
     close,
     show() {
       clearTimeout(timer.current);
+      setReturning(true);
       setLeaving(false);
       setOpen(true);
     },
@@ -55,7 +49,13 @@ export function WelcomeScene({
   leaving,
   onEnter,
   onSkip,
+  returning=false,
+  canContinue=false,
+  onContinue,
 }: {
+  returning?: boolean;
+  canContinue?: boolean;
+  onContinue?:()=>void;
   leaving: boolean;
   onEnter: () => void;
   onSkip: () => void;
@@ -101,8 +101,9 @@ export function WelcomeScene({
       </div>
       <div className="welcome-copy">
         <p className="eyebrow">STUDY ROOM</p>
-        <h1 id="welcome-heading">Welcome to your virtual study room.</h1>
+        <h1 id="welcome-heading">{returning?'Welcome back to your study room.':'Welcome to your virtual study room.'}</h1>
         <p>A little space to slow down, focus, and grow.</p>
+        {returning&&canContinue&&<p className="quiet-note">Return to your timer checkpoint and latest saved plan. Timers resume paused; notes and unsaved drafts are not recovered after closing a tab.</p>}
         <p id="welcome-note" className="quiet-note">
           Headphones recommended for the best experience
         </p>
@@ -110,10 +111,10 @@ export function WelcomeScene({
           <button
             className="primary"
             disabled={leaving}
-            onClick={onEnter}
+            onClick={returning&&canContinue&&onContinue?onContinue:onEnter}
             autoFocus
           >
-            Enter Study Room
+            {returning?(canContinue?'Continue last session':'Continue to Study Room'):'Enter Study Room'}
           </button>
           <button onClick={onSkip}>Skip welcome</button>
         </div>

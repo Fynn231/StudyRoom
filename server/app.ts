@@ -1,3 +1,4 @@
+import {validProfile} from '../src/profileModel.js';
 import { createServer, type RequestListener, type ServerResponse } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { createMusicHandler } from './music.js';
@@ -63,7 +64,16 @@ export function createStudyServer(
   const maxConnections = options.maxConnections ?? (hosted ? 256 : Number.MAX_SAFE_INTEGER);
   for (const value of [...Object.values(roomLimits), ...Object.values(rateLimits), maxConnections]) if (!Number.isSafeInteger(value) || value < 1) throw new Error('Safety limits must be positive safe integers.');
   const inference = createInferenceHandler(aiConfig);
-  const music = createMusicHandler(undefined, { auth: authConfig });
+  const music = createMusicHandler(undefined, { auth: authConfig, onListening(owner,track,target){
+    const matching=[...rooms.values()].filter(room=>!target||room.code===target.roomCode);
+    let updated=false;
+    for(const room of matching){let roomUpdated=false;for(const person of room.people.values()){
+      const peer=io.sockets.sockets.get(person.id),user=peer?.data.user;
+      if(user?.id!==owner.subject||user?.sessionId!==owner.sessionId||(target&&person.id!==target.participantId))continue;
+      if(track)person.listening=track;else delete person.listening;updated=true;roomUpdated=true;
+    }if(roomUpdated)broadcast(room);}
+    if(target&&!updated)throw Error('Room presence unavailable for this sign-in session.');
+  } });
   let pendingRequests = 0;
   const httpBuckets = new Map<string, { start: number; count: number }>();
   const http = createServer({ maxHeaderSize: 16384 }, async (req, res) => {
@@ -75,7 +85,7 @@ export function createStudyServer(
     const publicRead = (req.method === 'GET' || req.method === 'HEAD') && (
       ['/', '/index.html', '/auth/confirm', '/api/config', '/healthz', '/sw.js',
         '/manifest.webmanifest', '/icon-192.png', '/icon-512.png',
-        '/icon-maskable-512.png', '/apple-touch-icon.png'].includes(path)
+        '/icon-maskable-512.png', '/apple-touch-icon.png', '/downloads/studyroom-focus-extension.zip'].includes(path)
       || /^\/assets\/[A-Za-z0-9_-]+\.(?:js|css|png|svg|woff2?)$/.test(path)
     );
     // These responses contain only public data. Module requests carry the
@@ -229,6 +239,7 @@ export function createStudyServer(
       const peer = io.sockets.sockets.get(id);
       return (hosted ? peer?.data.user?.id : id) === room.owner;
     }) ?? null;
+    for(const person of room.people.values())if(person.listening&&clock()-person.listening.observedAt>90000)delete person.listening;
     return { code: room.code, participants: [...room.people.values()], timer: { ...room.timer }, serverNow: clock(), hostId, locked: room.locked, maxParticipants: roomLimits.maxParticipants };
   }
   const guards = new Map<string, SessionGuard>();
@@ -372,6 +383,11 @@ export function createStudyServer(
       }
       return room;
     });
+    on('profile:share',data=>{
+      const room=current();if(Object.keys(data).join('|')!=='profile'||!validProfile(data.profile))throw Error('Review the profile fields and device progress.');
+      const p=data.profile;room.people.get(socket.id)!.profile={displayName:p.displayName.trim(),bio:p.bio,accent:p.accent,sessions:p.sessions,minutes:p.minutes};return room;
+    });
+    on('profile:withdraw',()=>{const room=current(),person=room.people.get(socket.id)!;delete person.profile;return room;});
     on('intention:share', data => {
       const room = current();
       if (!text(data.text, 240)) throw new Error('Intention must be 1–240 characters, without control characters.');

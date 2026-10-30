@@ -9,3 +9,5 @@ dist/
 .DS_Store
 server/codex-inference.py
 server/codex-inference.cjs
+
+public/downloads/studyroom-focus-extension.zip

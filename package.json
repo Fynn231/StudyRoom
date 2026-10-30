@@ -17,7 +17,7 @@
     "pretest:smoke": "npm run build",
     "test:smoke": "tsx --test --test-concurrency=1 tests/startup.test.ts",
     "typecheck": "tsc --noEmit",
-    "build": "vite build",
+    "build": "node scripts/package-focus-extension.mjs && vite build",
     "test:operator": "node tests/local-only/run.mjs",
     "test:browser": "playwright test"
   },

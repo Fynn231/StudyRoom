@@ -6,9 +6,7 @@ for (const width of [1440, 390])
   }, info) => {
     await page.setViewportSize({ width, height: 960 });
     await page.goto("/");
-    const welcome = page.getByRole("dialog", {
-      name: "Welcome to your virtual study room.",
-    });
+    const welcome = page.getByRole("dialog");
     await expect(welcome).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Enter Study Room", exact: true }),
@@ -82,6 +80,8 @@ for (const width of [1440, 390])
     ).toHaveValue("Synthetic transition continuity");
     await page.reload();
     await expect(page.getByRole("timer")).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Welcome back to your study room.'})).toBeVisible();
+    await page.getByRole('button',{name:'Continue last session',exact:true}).click();
     await expect(welcome).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page
@@ -99,7 +99,7 @@ for (const width of [1440, 390])
         ),
     ).toBe(true);
     await page
-      .getByRole("button", { name: "Enter Study Room", exact: true })
+      .getByRole("button", { name: "Continue last session", exact: true })
       .click();
     await expect(welcome).toHaveCount(0);
     expect(
@@ -176,6 +176,7 @@ test("ambience is explicit, loops locally, mutes, fades with mode and never rest
     .poll(() => page.evaluate(() => (window as any).__ambienceContext.state))
     .toBe("closed");
   await page.reload();
+  await page.getByRole("button",{name:"Skip welcome",exact:true}).click();
   await page
     .locator("summary")
     .filter({ hasText: /^Room ambience$/ })

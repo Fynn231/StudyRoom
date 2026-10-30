@@ -1,6 +1,6 @@
 import { useAuthFetch } from './auth.js';
 import { useEffect, useRef, useState } from 'react';
-type Readiness = { spotify: { ready: boolean; authorized: boolean; blocker: string | null }; apple: { ready: false; blocker: string } };
+type Readiness = { spotify: { ready: boolean; authorized: boolean; canPlay?: boolean; canListen?: boolean; blocker: string | null }; apple: { ready: false; blocker: string } };
 type Player = { addListener: (name: string, callback: (event: any) => void) => boolean; connect: () => Promise<boolean>; disconnect: () => void; pause: () => Promise<void>; togglePlay: () => Promise<void>; activateElement: () => Promise<void>; seek?: (position: number) => Promise<void>; setVolume?: (volume: number) => Promise<void> };
 type SpotifySDK = { Player: new (options: { name: string; volume: number; getOAuthToken: (callback: (token: string) => void) => void }) => Player };
 declare global { interface Window { Spotify?: SpotifySDK; onSpotifyWebPlaybackSDKReady?: () => void } }
@@ -45,6 +45,7 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive, 
     const timer = setTimeout(() => { setConnectionUrl(null); setMessage('Connection link expired. Check account setup or connect again; your study session is unchanged.'); }, 300_000);
     return () => clearTimeout(timer);
   }, [connectionUrl]);
+  useEffect(()=>{const clear=()=>{teardown();setDevice(null);setEnabled(false);setTrack(null);setReadiness(v=>v?{...v,spotify:{...v.spotify,authorized:false}}:v);};window.addEventListener('studyroom:spotify-disconnected',clear);return()=>window.removeEventListener('studyroom:spotify-disconnected',clear);},[]);
   async function check() {
     try { const response = await authFetch('/api/music/status', { cache: 'no-store' }); if (!response.ok) throw Error(); const value = await response.json(); if (alive.current) { setReadiness(value); if (value.spotify?.authorized) setConnectionUrl(null); setMessage('Setup checked. Authorization and device readiness are not playback.'); } }
     catch { if (alive.current) setMessage('Account setup is unavailable. Official embeds still work.'); }
@@ -95,7 +96,7 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive, 
   }
   async function disconnect() {
     teardown(); setDevice(null); setEnabled(false);
-    try { const response = await authFetch('/api/music/disconnect', { method: 'POST' }); if (!response.ok) throw Error(); if (alive.current) { setReadiness(value => value ? { ...value, spotify: { ...value.spotify, authorized: false } } : value); setMessage('Local music session cleared. Provider consent can be revoked separately in Spotify account settings.'); } }
+    try { const response = await authFetch('/api/music/disconnect', { method: 'POST' }); if (!response.ok) throw Error(); if (alive.current) { setReadiness(value => value ? { ...value, spotify: { ...value.spotify, authorized: false } } : value); window.dispatchEvent(new Event('studyroom:spotify-disconnected')); setMessage('Local music session cleared. Provider consent can be revoked separately in Spotify account settings.'); } }
     catch { if (alive.current) setMessage('Device stopped locally; server disconnect could not be confirmed. Session expires within one hour.'); }
   }
   const position = track ? Math.min(track.duration, track.position + (track.paused ? 0 : Math.max(0,Date.now()-track.observed))) : 0;
@@ -110,10 +111,11 @@ export function ConnectedMusic({ provider, selection, onEnable, embeddedActive, 
     <p className="quiet-note">Separate from embeds. Spotify requires Premium and a registered app. Permission is personal, never shared with Party. Access tokens stay in memory, expire within one hour and are not saved in browser storage. Disconnect here does not revoke provider consent.</p>
     <button onClick={() => void check()}>Check account setup</button>
     {readiness && <p className="quiet-note">{readiness[provider].blocker ?? 'Spotify app configured. Continue with genuine provider consent.'}</p>}
+    {provider==='spotify'&&readiness?.spotify.authorized&&readiness.spotify.canPlay===false&&<p className="quiet-note">Listening status is connected. Connect playback separately to enable the in-page device.</p>}
     {provider === 'spotify' && <>
       <button disabled={!readiness?.spotify.ready || authorizing} onClick={() => void authorize()}>Connect Spotify account</button>
       {connectionUrl && <p><a className="launch-link" href={connectionUrl} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Continue Spotify connection (new tab)</a></p>}
-      {readiness?.spotify.authorized && <>
+      {readiness?.spotify.authorized && readiness.spotify.canPlay!==false && <>
         <button disabled={enabled} onClick={() => void enable()}>Enable Spotify device</button>
         <button disabled={!device || !selection} onClick={() => void play()}>Play selected on Spotify device</button>
         <button disabled={!device} onClick={() => { void player.current?.togglePlay().catch(() => setMessage('Spotify pause/resume failed.')); }}>Pause / resume Spotify device</button>

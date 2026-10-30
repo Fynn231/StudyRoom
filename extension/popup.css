@@ -1,0 +1,47 @@
+body {
+  font: 14px/1.5 system-ui;
+  background: #f6faf3;
+  color: #283d31;
+  padding: 20px;
+  width: 320px;
+  box-sizing: border-box;
+}
+h1 {
+  font:
+    28px/1.15 Georgia,
+    serif;
+}
+label {
+  display: block;
+  margin: 14px 0;
+}
+input,
+textarea,
+button {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px;
+  border: 1px solid #81947a;
+  border-radius: 8px;
+  min-height: 44px;
+}
+button {
+  margin: 5px 0;
+  background: #375d43;
+  color: white;
+  cursor: pointer;
+}
+#stop {
+  background: white;
+  color: #283d31;
+}
+.note {
+  font-size: 12px;
+}
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #286383;
+  outline-offset: 2px;
+}

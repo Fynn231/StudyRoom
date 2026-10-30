@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Study Room Focus Blocker",
+  "version": "0.1.0",
+  "description": "Optional, timed main-page blocking for sites you choose. No browsing history, content scripts or network telemetry.",
+  "permissions": ["declarativeNetRequest", "storage", "alarms"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Study Room Focus Blocker"
+  }
+}
