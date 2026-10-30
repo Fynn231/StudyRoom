@@ -6,6 +6,7 @@ import { io, type Socket } from 'socket.io-client';
 import { useOptionalAuth } from './auth';
 import type { Reply, RoomState } from './protocol.js';
 import { PrivateReview } from './PrivateReview.js';
+import {QuickGuide} from './QuickGuide.js';
 import { GoalNotes } from './GoalNotesPanel.js';
 import { HowStudyRoomWorks } from './HowStudyRoomWorks.js';
 import { SessionIntention } from './SessionIntention.js';
@@ -316,6 +317,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     <header className="masthead"><div className="brand-nav"><button className="wordmark" onClick={tapBrand}>{c('brand', 'study room')}<span className="wordmark-dot" aria-hidden="true">.</span></button><button className="home-link" onClick={showHome}>Home</button></div><span className="connection" role="status"><i aria-hidden="true" className={connected ? 'live' : ''} />{!party ? 'Solo · private in this tab' : connected ? (auth?.config?.required ? 'Party connected · signed in' : 'Party connected · local demo') : 'Disconnected · shared controls unavailable'}</span></header>
     {focusView&&<aside className="focus-view-toolbar" aria-label="Focus view controls"><strong>Focus view</strong><button onClick={()=>setFocusView(false)}>Exit focus view</button><button onClick={()=>void toggleFullscreen()}>Toggle fullscreen</button><p role="status">{fullscreenMessage}</p></aside>}
     <main id="main" tabIndex={-1}>
+      <QuickGuide/>
 
       <div className="page-heading"><div><p className="eyebrow">{c('heroEyebrow', 'A LITTLE SPACE TO BEGIN')}</p><h1>{c('heroTitle', 'One thing at a time.')}</h1></div>{room && <div className="invite"><span>Invite a study partner</span><strong aria-label="Room code">{room.code}</strong><button onClick={async () => { try { await navigator.clipboard.writeText(roomInvite(room.code)); setInviteMessage('Invite link copied.'); } catch { setInviteMessage('Copy unavailable. Select the link below.'); } }}>Copy link</button><input aria-label="Room invite link" readOnly value={roomInvite(room.code)} /><small>{loopbackInvite() ? `Loopback origin ${window.location.origin}: this link only works on the same device, not on a friend’s device. A public HTTPS website with sign-in configured is required for remote friends.` : `Website origin ${window.location.origin}: friends need this exact website to be reachable. Sign in if required, enter your name, then explicitly join. Reachability is not checked here.`}</small><span role="status">{inviteMessage}</span></div>}</div>
       <p className="demo-note">{auth?.config?.required ? 'Signed in · Private device data is separated by account. Rooms reset on server restart.' : 'Local demo · Room codes are not authentication. Don’t enter sensitive content. Rooms reset on server restart.'}</p>

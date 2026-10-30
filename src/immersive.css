@@ -292,3 +292,15 @@
 
 .room-listening { margin-top:24px;padding-top:20px;border-top:1px solid var(--line); }
 .room-listening > div { margin-top:16px; }
+
+.quick-guide { margin:16px 0;padding:14px 18px;border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink); }
+.quick-guide summary { cursor:pointer;font-weight:650; }
+.quick-guide [role=tablist] { display:flex;flex-wrap:wrap;gap:6px;max-width:100%;padding:12px 0 6px; }
+.quick-guide [role=tab] { flex:0 0 auto;min-height:44px;padding:8px 14px; }
+.quick-guide [aria-selected=true] { background:var(--ink);color:var(--paper); }
+.quick-guide h2 { font-size:1.05rem;margin:10px 0 6px; }
+.quick-guide p { max-width:88ch;font-size:.88rem;line-height:1.6;margin:0 0 10px; }
+.quick-guide-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.quick-guide-actions button { padding:8px 12px;min-height:44px;font-size:.82rem; }
+.focus-view .quick-guide { display:none; }
+.quick-guide [role=tabpanel]:focus-visible { outline:2px solid var(--ink);outline-offset:4px; }

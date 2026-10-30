@@ -23,6 +23,7 @@ test('synthetic hosted HTTP checks each request via RPC; config is public; missi
  globalThis.fetch=async input=>String(input).endsWith('jwks.json')?Response.json({keys:[{...keys.publicKey.export({format:'jwk'}),kid:'s',alg:'ES256'}]}):(rpc++,Response.json(live,{status}));
  const app=createStudyServer(siteHandler,Date.now,{executable:'/synthetic-must-never-run',script:'/synthetic-must-never-run'});
  try{
+  const secured=await request(app,'/api/session');assert.equal(secured.status,401);assert.equal(secured.headers['strict-transport-security'],'max-age=31536000');assert.equal(secured.headers['x-frame-options'],'DENY');assert.match(secured.headers['content-security-policy'],/frame-ancestors 'none'/);
   // Public reads survive an internal Host mismatch, without trusting forwarding.
   for (const path of ['/', '/auth/confirm?code=synthetic', '/healthz', '/api/config']) {
     assert.equal((await request(app,path,undefined,{host:'render-internal:10000','x-forwarded-host':'evil.example'})).status,200,path);

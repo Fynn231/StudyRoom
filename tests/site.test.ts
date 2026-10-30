@@ -9,6 +9,11 @@ test('built local site serves HTML and local assets without traversal', async t 
   t.after(() => app.close());
   const response = await fetch(url);
   assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-frame-options'),'DENY');
+  assert.match(response.headers.get('content-security-policy')??'',/frame-ancestors 'none'/);
+  assert.match(response.headers.get('content-security-policy')??'',/object-src 'none'/);
+  assert.equal(response.headers.get('permissions-policy'),'camera=(), microphone=(), geolocation=()');
+  assert.equal(response.headers.get('strict-transport-security'),null,'local HTTP must not set HSTS');
   assert.match(response.headers.get('content-type') ?? '', /text\/html/);
   const html = await response.text();
   assert.match(html, /<title>Study Room/);
@@ -21,4 +26,8 @@ test('built local site serves HTML and local assets without traversal', async t 
   assert.equal(traversal.status, 404);
   const missing = await fetch(url + '/missing.js');
   assert.equal(missing.status, 404);
+  assert.equal(missing.headers.get('x-frame-options'),'DENY');
+  const hostile=await fetch(url,{headers:{Origin:'https://hostile.invalid'}});
+  assert.equal(hostile.status,403);assert.equal(hostile.headers.get('x-content-type-options'),'nosniff');
+  assert.equal(hostile.headers.get('referrer-policy'),'no-referrer');
 });

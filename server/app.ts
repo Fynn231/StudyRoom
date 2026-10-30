@@ -77,6 +77,13 @@ export function createStudyServer(
   let pendingRequests = 0;
   const httpBuckets = new Map<string, { start: number; count: number }>();
   const http = createServer({ maxHeaderSize: 16384 }, async (req, res) => {
+    // Apply defenses before parsing/authentication so error responses are covered too.
+    res.setHeader('X-Content-Type-Options','nosniff');
+    res.setHeader('Referrer-Policy','no-referrer');
+    res.setHeader('X-Frame-Options','DENY');
+    res.setHeader('Content-Security-Policy',"base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'");
+    res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
+    if(hosted)res.setHeader('Strict-Transport-Security','max-age=31536000');
     let path;
     try { path = new URL(req.url ?? '/', 'http://localhost').pathname; }
     catch { res.writeHead(400); res.end(); return; }
@@ -115,8 +122,6 @@ export function createStudyServer(
         finally { pendingRequests--; }
       }
     }
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'no-referrer');
     if (path.startsWith('/api/music/')) { void music(req, res, identity); return; }
     if (path === '/api/session' && req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify({ ok: true })); return; }
     if (req.url?.startsWith('/api/ai/')) { void inference(req, res); return; }
