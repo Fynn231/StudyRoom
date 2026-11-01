@@ -159,14 +159,17 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
   const [party, setParty] = useState(!!invited);
   const [personal, setPersonal] = useState({ durationMs: 1500000, remainingMs: 1500000, endsAt: null as number | null });
   const [checkpoint,setCheckpoint]=useState(()=>readCheckpoint(storage));
+  const checkpointActive=useRef(false);
   const [resumeMessage,setResumeMessage]=useState('');
   const [hasSavedPlan]=useState(()=>{try{return parseSavedPlans(storage.getItem(STUDY_PLANS_KEY)).plans.length>0;}catch{return false;}});
   useEffect(()=>{
     if(!welcome)return;
     let interval:ReturnType<typeof setInterval>|undefined;
-    const capture=()=>{const value={durationMs:personal.durationMs,remainingMs:Math.max(0,personal.endsAt===null?personal.remainingMs:personal.endsAt-performance.now()),savedAt:Date.now()};if(saveCheckpoint(storage,value))setCheckpoint(value);if(value.remainingMs===0)clearInterval(interval);};
+    // A fresh, untouched tab must never replace another tab's saved timer.
+    if(personal.endsAt!==null||personal.remainingMs!==1500000||personal.durationMs!==1500000)checkpointActive.current=true;
+    const capture=()=>{if(!checkpointActive.current)return;const value={durationMs:personal.durationMs,remainingMs:Math.max(0,personal.endsAt===null?personal.remainingMs:personal.endsAt-performance.now()),savedAt:Date.now()};if(saveCheckpoint(storage,value))setCheckpoint(value);if(value.remainingMs===0)clearInterval(interval);};
     // Only timer state is remembered, never raw intentions, imported notes or AI excerpts.
-    if(personal.endsAt!==null||personal.remainingMs!==1500000||personal.durationMs!==1500000){capture();if(personal.endsAt!==null)interval=setInterval(capture,15000);}
+    if(checkpointActive.current){capture();if(personal.endsAt!==null)interval=setInterval(capture,15000);}
     window.addEventListener('pagehide',capture);return()=>{clearInterval(interval);window.removeEventListener('pagehide',capture);};
   },[welcome,personal,storage]);
   function continueLastSession(){

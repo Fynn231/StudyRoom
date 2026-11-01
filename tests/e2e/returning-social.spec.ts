@@ -196,3 +196,11 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
     await new Promise<void>((r) => fixture.close(() => r()));
   }
 });
+
+test('closing untouched tabs preserves the prior checkpoint; active reset still saves',async({context})=>{
+ const first=await context.newPage();await enter(first);await first.getByLabel('Enable focus chime',{exact:true}).uncheck();await first.getByLabel('Focus length',{exact:true}).fill('12');await first.getByRole('button',{name:'Start focus',exact:true}).click();await first.getByRole('button',{name:'Pause focus',exact:true}).click();
+ const read=()=>first.evaluate(()=>localStorage.getItem('studyroom.timerCheckpoint.v1'));const saved=await read();expect(saved).toBeTruthy();
+ const idle=await context.newPage();await enter(idle);await idle.goto('about:blank');await idle.close();expect(await read()).toBe(saved);
+ const welcome=await context.newPage();await welcome.goto('/');await expect(welcome.getByRole('heading',{name:'Welcome back to your study room.',exact:true})).toBeVisible();await welcome.goto('about:blank');await welcome.close();expect(await read()).toBe(saved);
+ await first.getByRole('button',{name:'Reset timer',exact:true}).click();await expect.poll(async()=>JSON.parse((await read())!).remainingMs).toBe(720000);await expect(first.getByRole('timer')).toHaveText('12:00');await first.close();
+});
