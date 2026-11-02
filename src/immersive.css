@@ -151,11 +151,25 @@
 }
 .welcome-petals i {
   position: absolute;
-  width: 15px;
-  height: 24px;
+  top: -50px;
+  width: var(--leaf-size);
+  height: calc(var(--leaf-size) * 1.6);
+  animation: welcome-drift var(--fall-duration) linear var(--fall-delay) infinite;
+}
+.welcome-petals i span {
+  display: block;
+  width: 100%;
+  height: 100%;
   border-radius: 80% 20% 65% 35%;
   background: linear-gradient(145deg, #ffffffb0, #a9c49a80);
-  animation: welcome-drift 18s linear infinite;
+  animation: welcome-swirl var(--orbit-duration) ease-in-out var(--fall-delay) infinite;
+  animation-direction: var(--orbit-direction);
+}
+@keyframes welcome-swirl {
+  0%, 100% { transform: translate3d(calc(var(--orbit-width) * -.65), 0, 0) rotate(-35deg) scaleX(.75); }
+  25% { transform: translate3d(0, -24px, 0) rotate(50deg) scaleX(1); }
+  50% { transform: translate3d(var(--orbit-width), 0, 0) rotate(155deg) scaleX(.45); }
+  75% { transform: translate3d(0, 28px, 0) rotate(245deg) scaleX(1); }
 }
 @keyframes welcome-arrive {
   from {
@@ -168,12 +182,8 @@
   }
 }
 @keyframes welcome-drift {
-  from {
-    transform: translate3d(0, -8vh, 0) rotate(-25deg);
-  }
-  to {
-    transform: translate3d(35px, 108vh, 0) rotate(90deg);
-  }
+  from { transform: translate3d(0, -8vh, 0); }
+  to { transform: translate3d(0, 116vh, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .room-backdrop,
@@ -183,6 +193,7 @@
     transition: none !important;
   }
   .welcome-petals i,
+  .welcome-petals i span,
   .welcome-copy,
   .locked-atmosphere {
     animation: none !important;
@@ -200,7 +211,8 @@
   }
 }
 
-.welcome-scene[data-hidden="true"] .welcome-petals i {
+.welcome-scene[data-hidden="true"] .welcome-petals i,
+.welcome-scene[data-hidden="true"] .welcome-petals i span {
   animation-play-state: paused;
 }
 

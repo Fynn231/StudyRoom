@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePrivateStorage } from "./privateStorage.js";
 export function useWelcome(enabled: boolean) {
   const storage = usePrivateStorage();
@@ -92,11 +92,19 @@ export function WelcomeScene({
       }}
     >
       <div className="welcome-petals" aria-hidden="true">
-        {Array.from({ length: 8 }, (_, i) => (
+        {Array.from({ length: 18 }, (_, i) => (
           <i
             key={i}
-            style={{ left: `${8 + i * 12}%`, animationDelay: `${-i * 1.7}s` }}
-          />
+            style={{
+              left: `${4 + (i % 6) * 18}%`,
+              '--fall-duration': `${23 + (i * 7) % 17}s`,
+              '--fall-delay': `${-((i * 13) % 37)}s`,
+              '--orbit-duration': `${5 + (i * 3) % 8}s`,
+              '--orbit-width': `${22 + (i * 17) % 65}px`,
+              '--orbit-direction': i % 2 ? 'reverse' : 'normal',
+              '--leaf-size': `${10 + (i * 7) % 9}px`,
+            } as CSSProperties}
+          ><span /></i>
         ))}
       </div>
       <div className="welcome-copy">
