@@ -4,9 +4,7 @@ export type TimerCheckpoint = {
   remainingMs: number;
   savedAt: number;
 };
-export function readCheckpoint(
-  storage: Pick<Storage, "getItem">,
-): TimerCheckpoint | null {
+export function readCheckpoint(storage: Pick<Storage, "getItem">): TimerCheckpoint | null {
   try {
     const v = JSON.parse(storage.getItem(CHECKPOINT_KEY) ?? "null");
     return v &&
@@ -25,10 +23,7 @@ export function readCheckpoint(
     return null;
   }
 }
-export function saveCheckpoint(
-  storage: Pick<Storage, "setItem">,
-  value: TimerCheckpoint,
-) {
+export function saveCheckpoint(storage: Pick<Storage, "setItem">, value: TimerCheckpoint) {
   try {
     storage.setItem(CHECKPOINT_KEY, JSON.stringify(value));
     return true;

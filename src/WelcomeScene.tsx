@@ -2,8 +2,16 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { usePrivateStorage } from "./privateStorage.js";
 export function useWelcome(enabled: boolean) {
   const storage = usePrivateStorage();
-  const [returning,setReturning]=useState(()=>{try{return storage.getItem('studyroom.welcome.seen')==='1';}catch{return false;}});
-  const [open,setOpen]=useState(()=>enabled&&!new URL(window.location.href).searchParams.has('room'));
+  const [returning, setReturning] = useState(() => {
+    try {
+      return storage.getItem("studyroom.welcome.seen") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [open, setOpen] = useState(
+    () => enabled && !new URL(window.location.href).searchParams.has("room"),
+  );
   const [leaving, setLeaving] = useState(false);
   const dismissed = useRef(false),
     timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -24,10 +32,7 @@ export function useWelcome(enabled: boolean) {
       setOpen(false);
       setLeaving(false);
     };
-    if (
-      animate &&
-      !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    ) {
+    if (animate && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       setLeaving(true);
       timer.current = setTimeout(finish, 1100);
     } else finish();
@@ -49,13 +54,13 @@ export function WelcomeScene({
   leaving,
   onEnter,
   onSkip,
-  returning=false,
-  canContinue=false,
+  returning = false,
+  canContinue = false,
   onContinue,
 }: {
   returning?: boolean;
   canContinue?: boolean;
-  onContinue?:()=>void;
+  onContinue?: () => void;
   leaving: boolean;
   onEnter: () => void;
   onSkip: () => void;
@@ -63,8 +68,7 @@ export function WelcomeScene({
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const sync = () => {
-      if (dialog.current)
-        dialog.current.dataset.hidden = String(document.hidden);
+      if (dialog.current) dialog.current.dataset.hidden = String(document.hidden);
     };
     sync();
     document.addEventListener("visibilitychange", sync);
@@ -96,23 +100,34 @@ export function WelcomeScene({
         {Array.from({ length: 18 }, (_, i) => (
           <i
             key={i}
-            style={{
-              left: `${4 + (i % 6) * 18}%`,
-              '--fall-duration': `${23 + (i * 7) % 17}s`,
-              '--fall-delay': `${-((i * 13) % 37)}s`,
-              '--orbit-duration': `${5 + (i * 3) % 8}s`,
-              '--orbit-width': `${22 + (i * 17) % 65}px`,
-              '--orbit-direction': i % 2 ? 'reverse' : 'normal',
-              '--leaf-size': `${10 + (i * 7) % 9}px`,
-            } as CSSProperties}
-          ><span /></i>
+            style={
+              {
+                left: `${4 + (i % 6) * 18}%`,
+                "--fall-duration": `${23 + ((i * 7) % 17)}s`,
+                "--fall-delay": `${-((i * 13) % 37)}s`,
+                "--orbit-duration": `${5 + ((i * 3) % 8)}s`,
+                "--orbit-width": `${22 + ((i * 17) % 65)}px`,
+                "--orbit-direction": i % 2 ? "reverse" : "normal",
+                "--leaf-size": `${10 + ((i * 7) % 9)}px`,
+              } as CSSProperties
+            }
+          >
+            <span />
+          </i>
         ))}
       </div>
       <div className="welcome-copy">
         <p className="eyebrow">STUDY ROOM</p>
-        <h1 id="welcome-heading">{returning?'Welcome back to your study room.':'Welcome to your virtual study room.'}</h1>
+        <h1 id="welcome-heading">
+          {returning ? "Welcome back to your study room." : "Welcome to your virtual study room."}
+        </h1>
         <p>A little space to slow down, focus, and grow.</p>
-        {returning&&canContinue&&<p className="quiet-note">Return to your timer checkpoint and latest saved plan. Timers resume paused; notes and unsaved drafts are not recovered after closing a tab.</p>}
+        {returning && canContinue && (
+          <p className="quiet-note">
+            Return to your timer checkpoint and latest saved plan. Timers resume paused; notes and
+            unsaved drafts are not recovered after closing a tab.
+          </p>
+        )}
         <p id="welcome-note" className="quiet-note">
           Headphones recommended for the best experience
         </p>
@@ -120,16 +135,18 @@ export function WelcomeScene({
           <button
             className="primary"
             disabled={leaving}
-            onClick={returning&&canContinue&&onContinue?onContinue:onEnter}
+            onClick={returning && canContinue && onContinue ? onContinue : onEnter}
             autoFocus
           >
-            {returning?(canContinue?'Continue last session':'Continue to Study Room'):'Enter Study Room'}
+            {returning
+              ? canContinue
+                ? "Continue last session"
+                : "Continue to Study Room"
+              : "Enter Study Room"}
           </button>
           <button onClick={onSkip}>Skip welcome</button>
         </div>
-        <p className="quiet-note">
-          Enter quietly. Sound is always your choice.
-        </p>
+        <p className="quiet-note">Enter quietly. Sound is always your choice.</p>
       </div>
     </dialog>
   );

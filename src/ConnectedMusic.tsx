@@ -152,13 +152,10 @@ export function ConnectedMusic({
       setDevice(null);
       setEnabled(false);
       setTrack(null);
-      setReadiness((v) =>
-        v ? { ...v, spotify: { ...v.spotify, authorized: false } } : v,
-      );
+      setReadiness((v) => (v ? { ...v, spotify: { ...v.spotify, authorized: false } } : v));
     };
     window.addEventListener("studyroom:spotify-disconnected", clear);
-    return () =>
-      window.removeEventListener("studyroom:spotify-disconnected", clear);
+    return () => window.removeEventListener("studyroom:spotify-disconnected", clear);
   }, []);
   async function check() {
     try {
@@ -171,8 +168,7 @@ export function ConnectedMusic({
         !value ||
         typeof value.spotify?.ready !== "boolean" ||
         typeof value.spotify?.authorized !== "boolean" ||
-        (value.spotify.blocker !== null &&
-          typeof value.spotify.blocker !== "string") ||
+        (value.spotify.blocker !== null && typeof value.spotify.blocker !== "string") ||
         value.apple?.ready !== false ||
         typeof value.apple?.blocker !== "string"
       )
@@ -189,8 +185,7 @@ export function ConnectedMusic({
         );
       }
     } catch {
-      if (alive.current)
-        setMessage("Account setup is unavailable. Official embeds still work.");
+      if (alive.current) setMessage("Account setup is unavailable. Official embeds still work.");
     }
   }
   useEffect(() => {
@@ -231,10 +226,7 @@ export function ConnectedMusic({
       const value = await response.json();
       if (!response.ok) throw Error();
       const url = new URL(value.url);
-      if (
-        url.origin !== "https://accounts.spotify.com" ||
-        url.pathname !== "/authorize"
-      )
+      if (url.origin !== "https://accounts.spotify.com" || url.pathname !== "/authorize")
         throw Error();
       if (!alive.current || run !== generation.current) {
         consent?.close();
@@ -254,9 +246,7 @@ export function ConnectedMusic({
     } catch {
       consent?.close();
       if (alive.current && run === generation.current)
-        setMessage(
-          "Could not connect Spotify. Try again or use a playlist link.",
-        );
+        setMessage("Could not connect Spotify. Try again or use a playlist link.");
     } finally {
       if (alive.current && run === generation.current) setAuthorizing(false);
     }
@@ -298,15 +288,12 @@ export function ConnectedMusic({
                 throw Error();
               clearTimeout(expiry.current);
               expiry.current = setTimeout(
-                () =>
-                  fail("Spotify authorization expired. Reconnect to continue."),
+                () => fail("Spotify authorization expired. Reconnect to continue."),
                 Math.min(token.expiresAt - Date.now(), 3600_000),
               );
               callback(token.access_token); // SDK receives token transiently; never persisted by StudyRoom.
             })
-            .catch(() =>
-              fail("Spotify authorization expired or unavailable. Reconnect."),
-            );
+            .catch(() => fail("Spotify authorization expired or unavailable. Reconnect."));
         },
       });
       player.current = next;
@@ -314,10 +301,7 @@ export function ConnectedMusic({
         if (current()) {
           setDevice(device_id);
           setMessage("Spotify player ready.");
-          if (
-            requestedSelection &&
-            latestSelection.current === requestedSelection
-          )
+          if (requestedSelection && latestSelection.current === requestedSelection)
             void play(next, device_id);
         }
       });
@@ -371,25 +355,15 @@ export function ConnectedMusic({
           ),
         );
       next.addListener("autoplay_failed", () => {
-        if (current())
-          setMessage(
-            "Browser blocked playback. Press the play/resume button again.",
-          );
+        if (current()) setMessage("Browser blocked playback. Press the play/resume button again.");
       });
       if (!(await next.connect()))
-        fail(
-          "Spotify device could not connect. Check Premium, browser DRM and app access.",
-        );
+        fail("Spotify device could not connect. Check Premium, browser DRM and app access.");
     } catch {
-      fail(
-        "Spotify SDK unavailable or blocked. Official embeds remain available.",
-      );
+      fail("Spotify SDK unavailable or blocked. Official embeds remain available.");
     }
   }
-  async function play(
-    preparedPlayer = player.current,
-    preparedDevice = device,
-  ) {
+  async function play(preparedPlayer = player.current, preparedDevice = device) {
     const current = preparedPlayer;
     const chosen = latestSelection.current;
     const run = generation.current;
@@ -413,9 +387,7 @@ export function ConnectedMusic({
       }
     } catch {
       if (alive.current && run === generation.current)
-        setMessage(
-          "Play failed or browser blocked audio. Retry with a direct click.",
-        );
+        setMessage("Play failed or browser blocked audio. Retry with a direct click.");
     }
   }
   async function disconnect() {
@@ -429,9 +401,7 @@ export function ConnectedMusic({
       if (!response.ok) throw Error();
       if (alive.current) {
         setReadiness((value) =>
-          value
-            ? { ...value, spotify: { ...value.spotify, authorized: false } }
-            : value,
+          value ? { ...value, spotify: { ...value.spotify, authorized: false } } : value,
         );
         window.dispatchEvent(new Event("studyroom:spotify-disconnected"));
         setMessage(
@@ -448,8 +418,7 @@ export function ConnectedMusic({
   const position = track
     ? Math.min(
         track.duration,
-        track.position +
-          (track.paused ? 0 : Math.max(0, Date.now() - track.observed)),
+        track.position + (track.paused ? 0 : Math.max(0, Date.now() - track.observed)),
       )
     : 0;
   const clock = (ms: number) =>
@@ -467,14 +436,9 @@ export function ConnectedMusic({
     >
       <summary>Account-connected playback</summary>
       {provider === "spotify" && (
-        <section
-          className="spotify-device-player"
-          aria-label="Full Spotify player"
-        >
+        <section className="spotify-device-player" aria-label="Full Spotify player">
           <p className="eyebrow">SPOTIFY PLAYER</p>
-          <h3>
-            {device && track ? track.name : "Your soundtrack, in this room."}
-          </h3>
+          <h3>{device && track ? track.name : "Your soundtrack, in this room."}</h3>
           <p>
             {device && track
               ? track.artist
@@ -519,9 +483,7 @@ export function ConnectedMusic({
                   setVolume(next);
                   void player.current
                     ?.setVolume?.(next)
-                    .catch(() =>
-                      setMessage("Spotify could not change volume."),
-                    );
+                    .catch(() => setMessage("Spotify could not change volume."));
                 }}
               />
             </label>
@@ -540,8 +502,7 @@ export function ConnectedMusic({
             >
               Continue in Spotify
             </a>
-          ) : readiness?.spotify.authorized &&
-            readiness.spotify.canPlay !== false ? (
+          ) : readiness?.spotify.authorized && readiness.spotify.canPlay !== false ? (
             <button
               className="primary"
               disabled={(enabled && !device) || !selection}
@@ -550,20 +511,13 @@ export function ConnectedMusic({
                 else if (track && playingSelection.current === selection)
                   void player.current
                     ?.togglePlay()
-                    .catch(() =>
-                      setMessage(
-                        "Spotify could not change playback. Try again.",
-                      ),
-                    );
+                    .catch(() => setMessage("Spotify could not change playback. Try again."));
                 else void play();
               }}
             >
               {enabled && !device
                 ? "Preparing Spotify…"
-                : device &&
-                    track &&
-                    playingSelection.current === selection &&
-                    !track.paused
+                : device && track && playingSelection.current === selection && !track.paused
                   ? "Pause Spotify"
                   : device && track && playingSelection.current === selection
                     ? "Resume Spotify"
@@ -588,15 +542,13 @@ export function ConnectedMusic({
         <details className="spotify-connection-settings">
           <summary>Connection settings</summary>
           <p className="quiet-note">
-            Full playback requires Spotify Premium. Your connection is personal;
-            sharing listening status with your room is a separate choice.
-            Disconnecting here does not revoke Spotify consent.
+            Full playback requires Spotify Premium. Your connection is personal; sharing listening
+            status with your room is a separate choice. Disconnecting here does not revoke Spotify
+            consent.
           </p>
           <button onClick={() => void check()}>Refresh connection</button>
           {readiness?.spotify.authorized && (
-            <button onClick={() => void disconnect()}>
-              Disconnect Spotify
-            </button>
+            <button onClick={() => void disconnect()}>Disconnect Spotify</button>
           )}
         </details>
       ) : (

@@ -1,6 +1,5 @@
 export function normalizeDomains(text) {
-  if (typeof text !== "string" || text.length > 4000)
-    throw Error("Use up to 50 website domains.");
+  if (typeof text !== "string" || text.length > 4000) throw Error("Use up to 50 website domains.");
   const domains = [
     ...new Set(
       text
@@ -15,11 +14,7 @@ export function normalizeDomains(text) {
     if (
       host.length > 253 ||
       !host.includes(".") ||
-      !host
-        .split(".")
-        .every((label) =>
-          /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label),
-        ) ||
+      !host.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
       /^[\d.]+$/.test(host) ||
       host === "studyroom-xbro.onrender.com" ||
       "studyroom-xbro.onrender.com".endsWith("." + host)

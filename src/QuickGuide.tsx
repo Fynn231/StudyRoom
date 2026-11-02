@@ -59,9 +59,7 @@ function openTool(selector: string) {
   for (let node: HTMLElement | null = target; node; node = node.parentElement)
     if (node.tagName === "DETAILS") (node as HTMLDetailsElement).open = true;
   const focus =
-    target.tagName === "DETAILS"
-      ? target.querySelector<HTMLElement>("summary")
-      : target;
+    target.tagName === "DETAILS" ? target.querySelector<HTMLElement>("summary") : target;
   focus?.focus();
   target.scrollIntoView?.({ block: "start", behavior: "auto" });
 }
@@ -90,8 +88,7 @@ export function QuickGuide() {
             onKeyDown={(e) => {
               let next = i;
               if (e.key === "ArrowRight") next = (i + 1) % sections.length;
-              else if (e.key === "ArrowLeft")
-                next = (i - 1 + sections.length) % sections.length;
+              else if (e.key === "ArrowLeft") next = (i - 1 + sections.length) % sections.length;
               else if (e.key === "Home") next = 0;
               else if (e.key === "End") next = sections.length - 1;
               else return;
@@ -114,11 +111,7 @@ export function QuickGuide() {
         <p>{section.text}</p>
         <div className="quick-guide-actions">
           {section.actions.map(([label, selector]) => (
-            <button
-              key={label}
-              type="button"
-              onClick={() => openTool(selector)}
-            >
+            <button key={label} type="button" onClick={() => openTool(selector)}>
               {label}
             </button>
           ))}

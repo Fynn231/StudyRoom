@@ -47,7 +47,7 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
         window.addEventListener("fixture:spotify-state", (e: any) =>
           this.listeners.player_state_changed?.(e.detail),
         );
-        window.addEventListener('fixture:spotify-offline',()=>this.listeners.not_ready?.({}));
+        window.addEventListener("fixture:spotify-offline", () => this.listeners.not_ready?.({}));
       }
       addListener(name: string, fn: (v: any) => void) {
         this.listeners[name] = fn;
@@ -55,9 +55,7 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
       }
       async connect() {
         this.options.getOAuthToken(() => {});
-        queueMicrotask(() =>
-          this.listeners.ready?.({ device_id: "fixture-device" }),
-        );
+        queueMicrotask(() => this.listeners.ready?.({ device_id: "fixture-device" }));
         return true;
       }
       async activateElement() {}
@@ -93,35 +91,22 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
   const panel = page
     .locator(".music-custom")
     .filter({ has: page.locator(".spotify-device-player") });
-  await expect(
-    panel.getByRole("button", { name: "Connect Spotify", exact: true }),
-  ).toBeEnabled();
-  const visibleButtons = () =>
-    panel.getByRole("button").filter({ visible: true });
+  await expect(panel.getByRole("button", { name: "Connect Spotify", exact: true })).toBeEnabled();
+  const visibleButtons = () => panel.getByRole("button").filter({ visible: true });
   await expect(visibleButtons()).toHaveCount(1);
   const opened = context.waitForEvent("page");
-  await panel
-    .getByRole("button", { name: "Connect Spotify", exact: true })
-    .click();
+  await panel.getByRole("button", { name: "Connect Spotify", exact: true }).click();
   const consent = await opened;
   await expect(consent).toHaveURL(/accounts.spotify.com\/authorize/);
-  await expect(consent.locator("body")).toContainText(
-    "Synthetic consent fixture",
-  );
+  await expect(consent.locator("body")).toContainText("Synthetic consent fixture");
   await expect(page).toHaveURL("http://127.0.0.1:4285/");
   await consent.close();
   authorized = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(
-    panel.getByRole("button", { name: "Play Spotify", exact: true }),
-  ).toBeEnabled();
-  await panel
-    .getByRole("button", { name: "Play Spotify", exact: true })
-    .click();
+  await expect(panel.getByRole("button", { name: "Play Spotify", exact: true })).toBeEnabled();
+  await panel.getByRole("button", { name: "Play Spotify", exact: true }).click();
   await expect.poll(() => plays.length).toBe(1);
-  await expect(
-    panel.getByRole("button", { name: "Pause Spotify", exact: true }),
-  ).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Pause Spotify", exact: true })).toHaveCount(0);
   await page.evaluate(() =>
     window.dispatchEvent(
       new CustomEvent("fixture:spotify-state", {
@@ -139,45 +124,29 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
       }),
     ),
   );
-  await expect(
-    panel.getByRole("button", { name: "Pause Spotify", exact: true }),
-  ).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Pause Spotify", exact: true })).toBeVisible();
   await expect(visibleButtons()).toHaveCount(1);
-  await panel
-    .getByRole("button", { name: "Pause Spotify", exact: true })
-    .click();
-  await expect(
-    panel.getByRole("button", { name: "Resume Spotify", exact: true }),
-  ).toBeVisible();
+  await panel.getByRole("button", { name: "Pause Spotify", exact: true }).click();
+  await expect(panel.getByRole("button", { name: "Resume Spotify", exact: true })).toBeVisible();
   await panel.screenshot({
     path: info.outputPath("spotify-simple-desktop.png"),
   });
   for (let i = 0; i < 5; i++) await page.locator(".wordmark").click();
   await expect(page.locator(".lock-in-mode")).toBeVisible();
-  await expect(
-    panel.getByRole("button", { name: "Resume Spotify", exact: true }),
-  ).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Resume Spotify", exact: true })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await panel.screenshot({ path: info.outputPath("spotify-simple-phone.png") });
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page
     .locator("summary")
     .filter({ hasText: /^Add a playlist or Spotify link$/ })
     .click();
   const playlist = "https://open.spotify.com/playlist/37i9dQZF1DX8NTLI2TtZa6";
   await page.getByLabel("Spotify link", { exact: true }).fill(playlist);
-  await page
-    .getByRole("button", { name: "Select music link", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Select music link", exact: true }).click();
   expect(plays.length).toBe(1);
-  await panel
-    .getByRole("button", { name: "Play Spotify", exact: true })
-    .click();
+  await panel.getByRole("button", { name: "Play Spotify", exact: true }).click();
   await expect.poll(() => plays.at(-1)?.url).toBe(playlist);
-  await page.evaluate(()=>window.dispatchEvent(new Event('fixture:spotify-offline')));
-  await expect(panel.getByRole('button',{name:'Play Spotify',exact:true})).toBeEnabled();
+  await page.evaluate(() => window.dispatchEvent(new Event("fixture:spotify-offline")));
+  await expect(panel.getByRole("button", { name: "Play Spotify", exact: true })).toBeEnabled();
 });

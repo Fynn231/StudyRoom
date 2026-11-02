@@ -65,8 +65,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   task.then(reply, () =>
     reply({
       ok: false,
-      error:
-        "Could not update blocking. Check domains and try again; use Stop to clear rules.",
+      error: "Could not update blocking. Check domains and try again; use Stop to clear rules.",
     }),
   );
   return true;

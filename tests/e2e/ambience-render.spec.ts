@@ -5,10 +5,7 @@ test("original three-minute synthesis renders without clipping and repeats seaml
   page,
 }, info) => {
   const source = stripTypeScriptTypes(
-    readFileSync(
-      new URL("../../src/ambienceAudio.ts", import.meta.url),
-      "utf8",
-    ),
+    readFileSync(new URL("../../src/ambienceAudio.ts", import.meta.url), "utf8"),
   );
   await page.route("**/__test_ambience.js", (r) =>
     r.fulfill({ contentType: "text/javascript", body: source }),
@@ -34,17 +31,10 @@ test("original three-minute synthesis renders without clipping and repeats seaml
       const value = data[start + i];
       square += value * value;
       peak = Math.max(peak, Math.abs(value));
-      view.setInt16(
-        i * 2,
-        Math.round(Math.max(-1, Math.min(1, value)) * 32767),
-        true,
-      );
+      view.setInt16(i * 2, Math.round(Math.max(-1, Math.min(1, value)) * 32767), true);
     }
     for (let i = 0; i < Math.floor(rate * 0.09); i++)
-      seam = Math.max(
-        seam,
-        Math.abs(data[start + i] - data[start + length + i]),
-      );
+      seam = Math.max(seam, Math.abs(data[start + i] - data[start + length + i]));
     let encoded = "";
     for (let i = 0; i < pcm.length; i += 32768)
       encoded += String.fromCharCode(...pcm.subarray(i, i + 32768));
@@ -72,10 +62,7 @@ test("original three-minute synthesis renders without clipping and repeats seaml
   header.writeUInt16LE(16, 34);
   header.write("data", 36);
   header.writeUInt32LE(pcm.length, 40);
-  writeFileSync(
-    info.outputPath("beneath-the-rain-original.wav"),
-    Buffer.concat([header, pcm]),
-  );
+  writeFileSync(info.outputPath("beneath-the-rain-original.wav"), Buffer.concat([header, pcm]));
   writeFileSync(
     info.outputPath("audio-analysis.json"),
     JSON.stringify(

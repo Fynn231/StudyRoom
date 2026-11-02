@@ -1,19 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createAmbience } from "./ambienceAudio.js";
 import { usePrivateStorage } from "./privateStorage.js";
-export function Ambience({
-  locked,
-  onWelcome,
-}: {
-  locked: boolean;
-  onWelcome: () => void;
-}) {
+export function Ambience({ locked, onWelcome }: { locked: boolean; onWelcome: () => void }) {
   const storage = usePrivateStorage();
   const [preference, setPreference] = useState(() => {
     try {
-      const value = JSON.parse(
-        storage.getItem("studyroom.ambience.v1") ?? "null",
-      );
+      const value = JSON.parse(storage.getItem("studyroom.ambience.v1") ?? "null");
       if (
         value &&
         typeof value.volume === "number" &&
@@ -50,13 +42,9 @@ export function Ambience({
     audio.current?.mute(next.muted);
     try {
       storage.setItem("studyroom.ambience.v1", JSON.stringify(next));
-      setMessage(
-        "Volume and mute saved on this device. Playback never starts automatically.",
-      );
+      setMessage("Volume and mute saved on this device. Playback never starts automatically.");
     } catch {
-      setMessage(
-        "Setting applied for this visit; device storage is unavailable.",
-      );
+      setMessage("Setting applied for this visit; device storage is unavailable.");
     }
   }
   async function play() {
@@ -91,14 +79,12 @@ export function Ambience({
       <p className="eyebrow">ORIGINAL STUDY ROOM SOUNDSCAPE</p>
       <h3>Beneath the Rain</h3>
       <p>
-        Soft rainfall, submerged ocean resonance and slow atmospheric movement.
-        An original three-minute evolving synthesis, without melody or sudden
-        sounds.
+        Soft rainfall, submerged ocean resonance and slow atmospheric movement. An original
+        three-minute evolving synthesis, without melody or sudden sounds.
       </p>
       <p className="quiet-note">
-        Separate from Spotify and Apple Music. You can listen to either, both,
-        or neither. LOCKED IN gently lowers this ambience; returning restores
-        its level only while it is playing.
+        Separate from Spotify and Apple Music. You can listen to either, both, or neither. LOCKED IN
+        gently lowers this ambience; returning restores its level only while it is playing.
       </p>
       <div className="ambience-actions">
         <button disabled={playing || busy} onClick={() => void play()}>
@@ -122,9 +108,7 @@ export function Ambience({
           max="1"
           step=".01"
           value={preference.volume}
-          onChange={(e) =>
-            save({ ...preference, volume: Number(e.target.value) })
-          }
+          onChange={(e) => save({ ...preference, volume: Number(e.target.value) })}
         />
       </label>
       <p role="status" className="quiet-note">

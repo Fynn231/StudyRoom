@@ -11,8 +11,7 @@ export function validProfile(value: unknown): value is StudyProfile {
   if (!value || typeof value !== "object") return false;
   const v = value as StudyProfile;
   return (
-    Object.keys(v).sort().join("|") ===
-      "accent|bio|displayName|minutes|sessions" &&
+    Object.keys(v).sort().join("|") === "accent|bio|displayName|minutes|sessions" &&
     typeof v.displayName === "string" &&
     !!v.displayName.trim() &&
     v.displayName.length <= 60 &&
@@ -34,9 +33,7 @@ export function profileStats(records: SessionRecord[]) {
     minutes: Math.floor(records.reduce((n, s) => n + s.focusedMs, 0) / 60000),
   };
 }
-export function profileBadges(
-  profile: Pick<StudyProfile, "sessions" | "minutes">,
-) {
+export function profileBadges(profile: Pick<StudyProfile, "sessions" | "minutes">) {
   return [
     {
       name: "First focus",

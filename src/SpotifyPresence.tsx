@@ -11,16 +11,13 @@ export function ListeningCard({ track }: { track: ListeningTrack }) {
     return <p className="quiet-note">Listening status expired.</p>;
   const position = Math.min(
     track.durationMs,
-    track.positionMs +
-      (track.playing ? Math.max(0, now - track.observedAt) : 0),
+    track.positionMs + (track.playing ? Math.max(0, now - track.observedAt) : 0),
   );
   const clock = (ms: number) =>
     `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
   return (
     <aside className="listening-card" aria-label="Spotify listening activity">
-      <p className="eyebrow">
-        {track.playing ? "LISTENING TO SPOTIFY" : "SPOTIFY PAUSED"}
-      </p>
+      <p className="eyebrow">{track.playing ? "LISTENING TO SPOTIFY" : "SPOTIFY PAUSED"}</p>
       {track.coverUrl && (
         <img
           className="track-cover"
@@ -31,20 +28,14 @@ export function ListeningCard({ track }: { track: ListeningTrack }) {
       )}
       <h4>{track.title}</h4>
       <p>{track.artist}</p>
-      <progress
-        aria-label="Song progress"
-        max={track.durationMs}
-        value={position}
-      />
+      <progress aria-label="Song progress" max={track.durationMs} value={position} />
       <p>
         {clock(position)} / {clock(track.durationMs)}
       </p>
       <a href={track.url} target="_blank" rel="noopener noreferrer">
         Open track on Spotify
       </a>
-      <p className="quiet-note">
-        Spotify-reported activity · not audio from this page.
-      </p>
+      <p className="quiet-note">Spotify-reported activity · not audio from this page.</p>
     </aside>
   );
 }
@@ -75,10 +66,7 @@ export function SpotifyPresence({
       if (!r.ok) throw Error();
       const v = await r.json(),
         url = new URL(v.url);
-      if (
-        url.origin !== "https://accounts.spotify.com" ||
-        url.pathname !== "/authorize"
-      )
+      if (url.origin !== "https://accounts.spotify.com" || url.pathname !== "/authorize")
         throw Error();
       setLink(url.href);
       setMessage(
@@ -116,15 +104,12 @@ export function SpotifyPresence({
       setLink("");
     };
     window.addEventListener("studyroom:spotify-disconnected", clear);
-    return () =>
-      window.removeEventListener("studyroom:spotify-disconnected", clear);
+    return () => window.removeEventListener("studyroom:spotify-disconnected", clear);
   }, []);
   async function refresh(share = false) {
     try {
       const r = await request(
-        share
-          ? "/api/music/spotify/share-listening"
-          : "/api/music/spotify/listening",
+        share ? "/api/music/spotify/share-listening" : "/api/music/spotify/listening",
         share
           ? {
               method: "POST",
@@ -180,13 +165,11 @@ export function SpotifyPresence({
     <section className="spotify-presence">
       <h3>Spotify connection</h3>
       <p className="quiet-note">
-        A Discord-style listening card, separate from in-page playback. Only the
-        current track, artist and progress are read. Sharing is off until you
-        choose it for your room; cards expire if updates stop.
+        A Discord-style listening card, separate from in-page playback. Only the current track,
+        artist and progress are read. Sharing is off until you choose it for your room; cards expire
+        if updates stop.
       </p>
-      <button onClick={() => void connect()}>
-        Connect Spotify listening status
-      </button>
+      <button onClick={() => void connect()}>Connect Spotify listening status</button>
       {link && (
         <a
           className="launch-link"
@@ -199,9 +182,7 @@ export function SpotifyPresence({
         </a>
       )}
       <button onClick={() => void refresh()}>Refresh listening status</button>
-      <button onClick={() => void disconnect()}>
-        Disconnect Spotify connection
-      </button>
+      <button onClick={() => void disconnect()}>Disconnect Spotify connection</button>
       {target && (
         <button
           aria-pressed={sharing}
@@ -212,9 +193,7 @@ export function SpotifyPresence({
             }
           }}
         >
-          {sharing
-            ? "Stop sharing Spotify with room"
-            : "Share Spotify status with room"}
+          {sharing ? "Stop sharing Spotify with room" : "Share Spotify status with room"}
         </button>
       )}
       <p role="status">{message}</p>

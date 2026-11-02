@@ -6,16 +6,47 @@
   overflow: visible;
   animation: none !important;
   transform-origin: center;
-  opacity: .82;
+  opacity: 0.82;
 }
-.natural-flowers[data-running="true"] .flower { will-change: transform; }
+.natural-flowers[data-running="true"] .flower {
+  will-change: transform;
+}
 @media (max-width: 600px) {
-  .natural-flowers .flower { width: calc(var(--size) * .78); height: calc(var(--size) * .78); }
+  .natural-flowers .flower {
+    width: calc(var(--size) * 0.78);
+    height: calc(var(--size) * 0.78);
+  }
 }
 /* Oversized, separately composited fields: never animate background-position
    on the full document, and never transform the app shell or timer. */
-.normal-gradient { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.normal-gradient i { position: absolute; inset: -45%; background: radial-gradient(ellipse at 40% 45%, var(--motion-second) 0%, color-mix(in srgb, var(--motion-second) 73%, transparent) 24%, transparent 57%); }
-.normal-gradient i + i { background: radial-gradient(ellipse at 55% 50%, var(--motion-first) 0%, color-mix(in srgb, var(--motion-first) 93%, transparent) 22%, transparent 57%); }
-.normal-gradient[data-running="true"] i { will-change: transform; }
-.lock-in-mode .normal-gradient { display: none; }
+.normal-gradient {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.normal-gradient i {
+  position: absolute;
+  inset: -45%;
+  background: radial-gradient(
+    ellipse at 40% 45%,
+    var(--motion-second) 0%,
+    color-mix(in srgb, var(--motion-second) 73%, transparent) 24%,
+    transparent 57%
+  );
+}
+.normal-gradient i + i {
+  background: radial-gradient(
+    ellipse at 55% 50%,
+    var(--motion-first) 0%,
+    color-mix(in srgb, var(--motion-first) 93%, transparent) 22%,
+    transparent 57%
+  );
+}
+.normal-gradient[data-running="true"] i {
+  will-change: transform;
+}
+.lock-in-mode .normal-gradient {
+  display: none;
+}

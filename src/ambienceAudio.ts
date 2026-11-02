@@ -21,8 +21,7 @@ export function createAmbienceGraph(context: BaseAudioContext) {
     const t = i / (rate * overlap);
     samples[i] =
       t < 1
-        ? raw[i] * Math.sin((t * Math.PI) / 2) +
-          raw[length + i] * Math.cos((t * Math.PI) / 2)
+        ? raw[i] * Math.sin((t * Math.PI) / 2) + raw[length + i] * Math.cos((t * Math.PI) / 2)
         : raw[i];
   }
   const master = context.createGain();

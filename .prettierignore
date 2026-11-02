@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.test-output/
+public/downloads/
+package-lock.json
+docs/*manifest.json
+docs/*candidate.json
+docs/*verification.json

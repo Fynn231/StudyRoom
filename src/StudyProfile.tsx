@@ -22,8 +22,7 @@ export function ProfileCard({ profile }: { profile: Profile }) {
       <h3>{profile.displayName}</h3>
       <p>{profile.bio || "Making room for one good next step."}</p>
       <p className="quiet-note">
-        Device progress · {profile.sessions} completed cycles ·{" "}
-        {profile.minutes} minutes
+        Device progress · {profile.sessions} completed cycles · {profile.minutes} minutes
       </p>
       <ul className="study-badges" aria-label="Study milestones">
         {profileBadges(profile).map((b) => (
@@ -57,8 +56,7 @@ export function StudyProfile({
   const [draft, setDraft] = useState<Profile>(() => {
     try {
       const value = JSON.parse(storage.getItem(PROFILE_KEY) ?? "null");
-      if (validProfile(value))
-        return { ...value, ...profileStats(loadSessions(storage).sessions) };
+      if (validProfile(value)) return { ...value, ...profileStats(loadSessions(storage).sessions) };
     } catch {}
     return {
       displayName: auth?.user?.name?.slice(0, 60) || "Study friend",
@@ -96,9 +94,9 @@ export function StudyProfile({
     >
       <summary>Your study profile</summary>
       <p className="quiet-note">
-        Edit privately. Save on this device or deliberately share with the
-        people in your current room. No notes, intentions or plan text are
-        included. Rejoining never restores sharing automatically.
+        Edit privately. Save on this device or deliberately share with the people in your current
+        room. No notes, intentions or plan text are included. Rejoining never restores sharing
+        automatically.
       </p>
       <ProfileCard profile={draft} />
       <label htmlFor={`${uid}-name`}>Profile display name</label>
@@ -106,9 +104,7 @@ export function StudyProfile({
         id={`${uid}-name`}
         value={draft.displayName}
         maxLength={60}
-        onChange={(e) =>
-          setDraft((v) => ({ ...v, displayName: e.target.value }))
-        }
+        onChange={(e) => setDraft((v) => ({ ...v, displayName: e.target.value }))}
       />
       <label htmlFor={`${uid}-bio`}>About your study space</label>
       <textarea
@@ -170,20 +166,16 @@ export function StudyProfile({
           </>
         )}
       </div>
-      {!inRoom && (
-        <p className="quiet-note">Join a room to share your profile.</p>
-      )}
+      {!inRoom && <p className="quiet-note">Join a room to share your profile.</p>}
       {blocked && (
         <p role="alert">
-          Study history could not be read. It was preserved; milestones are
-          unavailable.
+          Study history could not be read. It was preserved; milestones are unavailable.
         </p>
       )}
       <p role="status">{message}</p>
       <p className="quiet-note">
-        Milestones use completed cycles stored on this device. They are personal
-        progress, not verified attendance, ranked achievements or cloud-synced
-        totals.
+        Milestones use completed cycles stored on this device. They are personal progress, not
+        verified attendance, ranked achievements or cloud-synced totals.
       </p>
     </details>
   );
