@@ -8,7 +8,12 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:4285",
     launchOptions: {
-      executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      // CI uses Playwright's pinned Chromium; local operators can choose a browser.
+      executablePath:
+        process.env.CHROME_BIN ??
+        (process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : undefined),
     },
     screenshot: "only-on-failure",
     video: "on",

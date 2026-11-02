@@ -80,6 +80,9 @@ test("optional blocker uses bounded exact domain rules and never collects page c
   for (const invalid of [
     "https://youtube.com/path",
     "*.com",
+    "device.local",
+    "host.localhost",
+    "private.internal",
     "studyroom-xbro.onrender.com",
     "onrender.com",
     "127.0.0.1",

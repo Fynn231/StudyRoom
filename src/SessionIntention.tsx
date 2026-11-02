@@ -49,17 +49,15 @@ function pastedRoadmap(brief: string): Roadmap {
     .flatMap((s) => s.split(/[.!?;]\s+/))
     .map((s) => s.trim())
     .filter(Boolean);
-  const steps = lines
-    .slice(0, 12)
-    .map((line) => ({
-      id: crypto.randomUUID(),
-      title: line.slice(0, 180),
-      instructions: line.length > 180 ? line.slice(180, 1080) : "",
-      status: "todo" as const,
-      kind: "draft" as const,
-      source: { file: "", fileIndex: 0, heading: "", line: 0, excerpt: "" },
-      minutes: null,
-    }));
+  const steps = lines.slice(0, 12).map((line) => ({
+    id: crypto.randomUUID(),
+    title: line.slice(0, 180),
+    instructions: line.length > 180 ? line.slice(180, 1080) : "",
+    status: "todo" as const,
+    kind: "draft" as const,
+    source: { file: "", fileIndex: 0, heading: "", line: 0, excerpt: "" },
+    minutes: null,
+  }));
   return { draft: true, omitted: Math.max(0, lines.length - 12), steps };
 }
 type Candidate = {

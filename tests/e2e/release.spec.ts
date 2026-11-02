@@ -149,13 +149,11 @@ for (const [name, width, height] of [
     await page.locator("[data-action=reset]").click();
     await expect(page.getByRole("timer")).toHaveText("25:00");
     await summary(page, "Goals / notes");
-    await page
-      .getByLabel("Choose Markdown notes", { exact: true })
-      .setInputFiles({
-        name: "synthetic.md",
-        mimeType: "text/markdown",
-        buffer: Buffer.from("# Next\n- [ ] Read one section\n- [x] Done\n"),
-      });
+    await page.getByLabel("Choose Markdown notes", { exact: true }).setInputFiles({
+      name: "synthetic.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# Next\n- [ ] Read one section\n- [x] Done\n"),
+    });
     await expect(page.getByText("synthetic.md", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Clear imported notes", exact: true }).click();
     await expect(page.getByText("No notes imported", { exact: true })).toBeVisible();

@@ -51,3 +51,11 @@ The release boundary is a reviewed private branch. No main merge, paid upgrade, 
 Typecheck and production build passed. Full suite: 168 passed, zero failed/skipped. Five real Chromium browser tests passed, including visit-only Focus confirmation, account/profile boundaries, checkpoint preservation and the optional extension. The auth lifecycle test was updated to require a non-persisted self-report while retaining account-switch and legacy-storage isolation assertions; it passed independently and in the full suite. The initial full run caught its outdated persistence expectation before that correction.
 
 A fresh hosted health request on November 2 timed out; current live availability/revision was not re-established in this pass. No new deployment is claimed. The private branch is the deliverable for this review.
+
+## Follow-up implementation
+
+The subsequent cleanup adds pinned Prettier formatting and checks, reformats source into readable blocks, extracts local fullscreen/Escape presentation into `useFocusView`, and adds a read-only GitHub Actions workflow for formatting, typechecking, tests and browser checks. Playwright now supports Linux/pinned Chromium and an explicit CHROME_BIN override. The large App orchestration still merits further gradual extraction; formatting does not eliminate its architectural complexity.
+
+The blocker follow-up validates stored leases, rejects local/private hostnames, keeps Stop available after preference-read failure and refreshes open-popup status after expiry. Real extension tests exercise expired-lease cleanup and removal of actual session rules. Safari candidate preparation is isolated from Chromium sources; native signing/install and compatibility remain unverified.
+
+Exact local Apple tool blockers: `xcrun --find safari-web-extension-packager`, `xcrun --find safari-web-extension-converter` and `xcrun --find xcodebuild` report unavailable. The active `/Library/Developer/CommandLineTools` installation is working and was not reinstalled or reconfigured. Full Xcode is needed for local Safari/iOS native generation/build/testing, not website development or Chromium extension development.

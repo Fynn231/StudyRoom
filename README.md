@@ -88,3 +88,9 @@ The portable default suite retains the original runtime, UI, privacy, origin, au
 Auth/provider HTTP fixtures and model subprocess fixtures are **synthetic**. They test the actual application boundaries but do not establish genuine email delivery, Google consent, live Supabase session-row behavior, Spotify consent/DRM or real model output. Browser emulation is not physical mobile-device testing. Container execution and live Render deployment require their own verification.
 
 `docs/publication-manifest.json` maps the selected source baseline to candidate hashes and records exclusions; it deliberately omits machine paths and internal reports. It is a limited provenance aid, not a guarantee that no sensitive data exists. Keep all future keys, user data and test outputs out of Git.
+
+## Consistent review checks
+
+Run `npm run format:check` before review; `npm run format` applies the pinned style to source, server, extension, scripts and browser tests. The GitHub Actions workflow runs formatting, strict typechecking, the default test suite and browser tests with Playwright's Chromium on Linux. Local macOS uses installed Chrome by default; set `CHROME_BIN` to choose another executable. The optional extension test uses Playwright's pinned Chromium and requires `npx playwright install chromium` locally.
+
+`STUDY_EXPECTED_REVISION=<full-reviewed-sha> npm run verify:deployment` checks the public deployed revision, tested local asset bytes, security headers and anonymous rejection of protected endpoints. It never attaches authentication and is not proof of signed-in provider behavior. Build locally first. Safari candidate commands and their Xcode/device limitations are documented in [extension/README.md](extension/README.md).

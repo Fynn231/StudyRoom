@@ -19,7 +19,7 @@ test('full app defaults to a stationary deeper white-to-sage diagonal instead of
 });
 
 test('normal focus text clears 4.5:1 against its actual opaque reading surface', () => {
-  assert.match(css, /\.focus-surface \{ background: var\(--paper\)/);
+  assert.match(css, /\.focus-surface\s*\{\s*background: var\(--paper\)/);
   const paper = css.match(/--paper: (#[a-f0-9]{6})/)![1];
   const colors = [css.match(/--muted: (#[a-f0-9]{6})/)![1], css.match(/\.timer-caption \{[^}]*color: (#[a-f0-9]{6})/)![1], css.match(/\.timer-area \.eyebrow \{[^}]*color: (#[a-f0-9]{6})/)![1]];
   for (const color of colors) assert.ok(ratio(paper, color) >= 4.5, color);

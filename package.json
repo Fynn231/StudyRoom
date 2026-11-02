@@ -21,7 +21,10 @@
     "test:operator": "node tests/local-only/run.mjs",
     "test:browser": "playwright test",
     "format": "prettier --write src server extension scripts tests/e2e playwright.config.ts",
-    "format:check": "prettier --check src server extension scripts tests/e2e playwright.config.ts"
+    "format:check": "prettier --check src server extension scripts tests/e2e playwright.config.ts",
+    "extension:safari:prepare": "node scripts/prepare-safari-extension.mjs",
+    "extension:safari:xcode": "node scripts/prepare-safari-extension.mjs --xcode",
+    "verify:deployment": "node scripts/verify-deployment.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",

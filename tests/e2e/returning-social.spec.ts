@@ -150,6 +150,23 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
     await expect(popup.locator("#status")).toHaveText("Blocking is off.");
     await target.goto(`http://focus-blocker.test:${port}/`);
     await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    // Exercise actual worker recovery, not just rule construction.
+    await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
+    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
+    await worker.evaluate(async () => {
+      const api = (globalThis as any).chrome;
+      await api.storage.local.set({
+        active: { domains: ["focus-blocker.test"], endsAt: Date.now() - 1 },
+      });
+    });
+    await expect(popup.locator("#status")).toHaveText("Blocking is off.", { timeout: 12000 });
+    expect(
+      await worker.evaluate(() =>
+        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
+      ),
+    ).toEqual([]);
+    await target.goto(`http://focus-blocker.test:${port}/`);
+    await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
   } finally {
     await context.close();
     fixture.closeAllConnections();

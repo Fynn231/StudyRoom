@@ -20,6 +20,14 @@ async function sync() {
     await stop();
     return null;
   }
+  // Storage is untrusted: reject malformed leases before the popup reports success.
+  try {
+    const canonical = normalizeDomains(active.domains.join("\n"));
+    if (JSON.stringify(canonical) !== JSON.stringify(active.domains)) throw Error("Invalid lease");
+  } catch {
+    await stop();
+    return null;
+  }
   return active;
 }
 async function handle(message) {

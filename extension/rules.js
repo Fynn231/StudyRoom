@@ -13,6 +13,7 @@ export function normalizeDomains(text) {
   for (const host of domains)
     if (
       host.length > 253 ||
+      /(?:^|\.)(?:localhost|local|internal)$/.test(host) ||
       !host.includes(".") ||
       !host.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label)) ||
       /^[\d.]+$/.test(host) ||

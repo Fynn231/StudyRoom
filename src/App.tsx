@@ -1,3 +1,4 @@
+import { useFocusView } from "./useFocusView.js";
 import { inviteCode, roomInvite, loopbackInvite } from "./invite.js";
 import { usePrivateStorage } from "./privateStorage.js";
 import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
@@ -70,24 +71,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     resumeFromPriorVisit.current = false;
     showWelcome();
   }
-  const [focusView, setFocusView] = useState(false);
-  const [fullscreenMessage, setFullscreenMessage] = useState("");
-  async function toggleFullscreen() {
-    try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await document.documentElement.requestFullscreen();
-      setFullscreenMessage("");
-    } catch {
-      setFullscreenMessage("Fullscreen is unavailable. Focus view still works.");
-    }
-  }
-  useEffect(() => {
-    const leave = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFocusView(false);
-    };
-    window.addEventListener("keydown", leave);
-    return () => window.removeEventListener("keydown", leave);
-  }, []);
+  const { focusView, setFocusView, fullscreenMessage, toggleFullscreen } = useFocusView();
   const [background, setBackground] = useState<string | undefined>();
   const [motionPalette, setMotionPalette] = useState<readonly string[] | null>(null);
   const [flowerEffect, setFlowerEffect] = useState<FlowerEffect>("none");
