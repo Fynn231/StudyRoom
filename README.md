@@ -16,11 +16,23 @@ React + TypeScript is built by Vite into `dist/`. A Node server serves the built
 
 Imported sources and appearance state are in memory. Saved derived plans, reflections, preferences and session records use browser storage, scoped to the signed-in subject in hosted mode. They are **not encrypted or cloud-synced** and may contain imported information. Browser/site-data clearing can remove them. A different account or sign-in session discards unsaved workspace state. The auth SDK also maintains its own auth/PKCE browser storage.
 
-Typing an intention or importing/building a plan does not publish it to a room. Only explicit sharing sends the intention. Private notes and plan steps are not room broadcasts. Explicit optional local AI requests can send selected text to an operator-configured provider; no personal AI runner or account configuration is distributed here. **Hosted AI is disabled**, even when AI environment variables are supplied.
+Typing an intention or importing/building a plan does not publish it to a room. Only explicit sharing sends the intention. Private notes and plan steps are not room broadcasts. Explicit optional local AI requests can send selected text to an operator-configured provider; no personal AI runner or account configuration is distributed here. Hosted AI uses an authenticated, server-side free-only OpenRouter route; see [HOSTED-AI.md](HOSTED-AI.md). Free capacity is not guaranteed. Failures preserve manual planning, with no paid fallback.
 
-## Isolated release candidate
+## Current status and review
 
-The current candidate's tested scope is recorded in `docs/release-verification.json`; relative source/candidate hashes and exclusions are in `docs/release-candidate.json`. The older `docs/verification.json` and `docs/publication-manifest.json` describe only the historical main baseline, not this working tree. No container build, real provider sign-in or public deployment is claimed. See `docs/hosted-setup.md` for the tested first-deploy Docker Command that derives the exact canonical origin from Render's assigned URL without a runtime source change.
+This is a working beta, not a finished cross-platform product. The private review branch contains changes beyond the historical main baseline. See [engineering review](docs/engineering-review-20261102.md) for readiness, limitations and priorities. Historical hash manifests describe their named snapshots only, not the current tree.
+
+- Home supports returning users and a paused timer checkpoint.
+- Focus view hides secondary tools without starting or resetting your timer. System DND remains manual on iOS and other devices.
+- The optional blocker is a separate desktop Chrome/Edge extension, not an iOS app or Safari extension.
+- Profiles and current-track sharing are opt-in and room-scoped; progress stays device-local.
+- `/healthz` reports the deployed revision. A successful build is not proof that a commit is deployed.
+
+## Reading and contributing
+
+Start with `src/App.tsx` for workspace orchestration and `server/app.ts` for HTTP/socket boundaries. Feature components live in `src/`; authentication, AI, music and room validation live in `server/`. `extension/` is the independently installed optional blocker. `tests/` holds unit/integration coverage; `tests/e2e/` holds real Chromium UI checks.
+
+Use strict TypeScript, validate external input at the server boundary, and comment decisions and privacy constraints rather than restating syntax. Keep private drafts out of room events and credentials out of client code. Run typecheck, build and tests relevant to a change before pushing a review branch. Browser tests additionally require the Chrome path documented in `playwright.config.ts`.
 
 ## Local setup
 
@@ -44,7 +56,7 @@ The default port is 4173; `PORT` can override it. Local mode binds only to loopb
 
 ## Hosted setup: Render + Supabase
 
-The supplied Dockerfile and `render.yaml` target one free-plan Render web service, with manual deployment, hosted authentication required and `/healthz` as the process-health endpoint. No live service, account consent or SQL application is established by the source or local tests. A public website can be served from a private repository; visitors do not need repository access.
+The supplied Dockerfile and `render.yaml` target one free-plan Render web service, with manual deployment, hosted authentication required and `/healthz` as the process-health endpoint. Source and local tests alone do not establish live service configuration, account consent or SQL application. A public website can be served from a private repository; visitors do not need repository access.
 
 1. Create/select the intended Supabase project. Review and, as database owner, apply `docs/sql/studyroom-session-active.sql` in **that project only**. It is an unapplied setup artifact here. Without this RPC the app fails closed rather than trusting a valid-but-revoked token.
 2. Configure email delivery and/or Google sign-in in Supabase. Set the Site URL to the final canonical HTTPS origin and configure its `/auth/confirm` redirect, including the optional validated room query. See `docs/hosted-setup.md` for the email template and verification checklist. Provider secrets belong in provider dashboards, never in the repository or frontend.

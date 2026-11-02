@@ -91,6 +91,7 @@ export function WelcomeScene({
         onSkip();
       }}
     >
+      {/* Separate fall/orbit transforms vary the swirl without per-frame React updates. */}
       <div className="welcome-petals" aria-hidden="true">
         {Array.from({ length: 18 }, (_, i) => (
           <i

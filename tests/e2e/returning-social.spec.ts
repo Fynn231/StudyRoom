@@ -204,3 +204,18 @@ test('closing untouched tabs preserves the prior checkpoint; active reset still 
  const welcome=await context.newPage();await welcome.goto('/');await expect(welcome.getByRole('heading',{name:'Welcome back to your study room.',exact:true})).toBeVisible();await welcome.goto('about:blank');await welcome.close();expect(await read()).toBe(saved);
  await first.getByRole('button',{name:'Reset timer',exact:true}).click();await expect.poll(async()=>JSON.parse((await read())!).remainingMs).toBe(720000);await expect(first.getByRole('timer')).toHaveText('12:00');await first.close();
 });
+
+test('device Focus confirmation is a visit-only self-report, never restored as OS permission', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Skip welcome', exact: true }).click();
+  await page.locator('summary').filter({ hasText: /^Protect your focus$/ }).click();
+  const confirmation = page.getByRole('checkbox', { name: 'I enabled my device’s Focus or Do Not Disturb myself for this session' });
+  await expect(confirmation).not.toBeChecked();
+  await confirmation.check();
+  await expect(page.getByText('Recorded as your own confirmation for this visit only.', { exact: false })).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Skip welcome', exact: true }).click();
+  await page.locator('summary').filter({ hasText: /^Protect your focus$/ }).click();
+  await expect(confirmation).not.toBeChecked();
+  await expect(page.getByText('Safari cannot display a permission prompt', { exact: false })).toBeVisible();
+});

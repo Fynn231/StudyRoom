@@ -62,13 +62,14 @@ test('synthetic provider lifecycle submits signed-out actions, isolates account 
  let draft=q.getByLabelText('Your session intention') as HTMLTextAreaElement;
  const textSetter=Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype,'value')!.set!;textSetter.call(draft,'PRIVATE A');rtl.fireEvent.input(draft);
  // React change handling across test realms is not needed to prove DOM reset;
- // use focus-setup's normal click to prove persisted state isolation.
+ // use Focus's visit-only self-report to prove mounted account state isolation.
  const checkbox=view.container.querySelector('.focus-setup input') as HTMLInputElement;
  assert.equal(checkbox.checked,false,'legacy local preference is not imported into hosted account A');rtl.fireEvent.click(checkbox);
- assert.equal(dom.window.localStorage.getItem('studyroom.account.A.studyroom.focusSetup.v1'),'confirmed');
+ assert.equal(checkbox.checked,true);
+ assert.equal(dom.window.localStorage.getItem('studyroom.account.A.studyroom.focusSetup.v1'),null,'OS self-report is never persisted');
  await change('A',1);assert.equal(q.getByLabelText('Your session intention'),draft,'refresh retains the mounted private workspace');assert.equal((draft as HTMLTextAreaElement).value,'PRIVATE A','refresh preserves unsaved input');
  await change('B');assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'');assert.equal((view.container.querySelector('.focus-setup input') as HTMLInputElement).checked,false);
- await change('A');assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'');assert.equal((view.container.querySelector('.focus-setup input') as HTMLInputElement).checked,true);
+ await change('A');assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'');assert.equal((view.container.querySelector('.focus-setup input') as HTMLInputElement).checked,false,'returning to an account must not restore an old OS self-report');
  rtl.fireEvent.click(q.getByRole('button',{name:'Sign out'}));await rtl.waitFor(()=>assert.ok(q.getByRole('button',{name:'Send magic link'})));assert.equal(signouts,1);assert.equal(q.queryByLabelText('Your session intention'),null);
  assert.equal(dom.window.localStorage.getItem('studyroom.focusSetup.v1'),'confirmed','unrelated legacy work is preserved');
  view.unmount();assert.equal(created,1,'StrictMode cancellation creates only one active client');assert.equal(disposed,1);assert.equal(unsubscribed,1);
