@@ -14,6 +14,7 @@ const sections = [
     title: "Plan your next step.",
     text: "Use your intention, paste a plan, or import Markdown notes. AI receives only what you explicitly submit. Save a reviewed copy if you want to continue it later.",
     actions: [
+      ["Tasks & deadlines", ".hybrid-planner"],
       ["Plan an intention", ".intention-surface textarea"],
       ["Import notes", ".goal-panel"],
       ["Saved plans", ".saved-study-plans"],
@@ -49,7 +50,7 @@ const sections = [
   {
     name: "Privacy",
     title: "Keep private work private.",
-    text: "Room members do not receive your notes, unshared drafts or account tokens. AI sends your submitted intention or selected excerpts to the provider. Saved plans stay in this browser and are not encrypted or cloud-synced.",
+    text: "Room members do not receive your notes, unshared drafts or account tokens. AI sends your submitted intention or selected excerpts to the provider. Device-saved plans stay in this browser and are not encrypted. The separate account-schedule save requires explicit approval and configured Supabase storage.",
     actions: [["Privacy and full instructions", ".help-panel"]],
   },
 ] as const;

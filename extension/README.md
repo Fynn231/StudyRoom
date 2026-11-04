@@ -6,9 +6,15 @@ Chrome/Edge desktop, Manifest V3. This is an unpacked developer release, not a p
 2. Open chrome://extensions (or edge://extensions), enable Developer mode, choose Load unpacked and select the extracted folder containing manifest.json.
 3. Review the requested blocking/storage/alarm permissions. No host/content/history/tabs permissions or content scripts are requested.
 4. Open the extension popup, enter 1–50 domain names and 1–180 minutes, and press Start blocking.
-5. Stop blocking at any time from its popup; disabling/removing the extension also stops it.
+5. Use Check status in the popup to refresh its last report, or Stop blocking now to end a block early. If Stop is not confirmed, disable/remove the extension in browser settings; do not wait for the study timer.
 
-The extension blocks top-level HTTP/HTTPS page loads with declarative rules, including subdomains. It does not read website content, browsing history or credentials, send telemetry, silence system notifications, control other browsers or guarantee already-playing media stops. Study Room's own host and parent domains cannot be blocked. Rules expire via an alarm, are checked on worker wakeup, and are cleared on browser startup/update. The Study Room website neither installs it nor claims its state is active. Timers and blocking are deliberately started separately. Safari/mobile installation is not supported by this package.
+The extension blocks top-level HTTP/HTTPS page loads with declarative rules, including subdomains. It does not read website content, browsing history or credentials, send telemetry, silence system notifications, control other browsers or guarantee already-playing media stops. Study Room's own host and parent domains cannot be blocked. Rules use an expiry alarm and are checked on worker wakeup; browser sleep/suspension can delay cleanup, so exact wall-clock removal is not guaranteed. Rules are cleared on browser startup/update. Reload a blocked page after Stop is confirmed.
+
+The Study Room website neither installs the extension nor detects its blocking state. Timers and blocking deliberately start and stop separately: ending a study timer or leaving Focus view does not stop the blocker. Safari/mobile installation is not supported by this package.
+
+### Recovery behavior
+
+A durable stored lease is not proof that session rules exist. On worker wake/status, the extension checks both: missing or altered rules clear the lease rather than silently restarting blocking. A missing or changed expiry alarm is restored to the original deadline, never a fresh duration. If lease/rule/alarm inspection or alarm repair fails, it attempts to clear rules and reports an error rather than claiming active blocking. If rule removal itself fails, it leaves the existing expiry alarm in place and does not confirm Stop. Retry Stop or disable/remove the extension. Popup reports ignore older responses after newer Start/Stop actions, and Check status permits explicit retry without reopening it.
 
 Source is included. Packaging is reproducible with `node scripts/package-focus-extension.mjs` from the repository root.
 

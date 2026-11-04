@@ -16,6 +16,7 @@ import {
   type PlanDraft,
   type SavedPlan,
 } from "./savedStudyStore.js";
+import { selectPlan, clearPlanSelection } from "./planSelection.js";
 import { PlanStepEditor, validPlanSteps } from "./PlanStepEditor.js";
 const SaveContext = createContext<((draft: PlanDraft) => boolean) | null>(null);
 export function SaveStudyPlan({ draft }: { draft: PlanDraft }) {
@@ -177,8 +178,10 @@ export function StudyProgress({
         )
       )
         setActive(stamped);
+        selectPlan(stamped);
     } else {
       setActive(next);
+      selectPlan(next);
       setMessage("Completion changed in this tab only. Keeping updates is off.");
     }
   }
@@ -281,6 +284,7 @@ export function StudyProgress({
                 <button
                   onClick={() => {
                     setActive({ ...p, steps: p.steps.map((s) => ({ ...s })) });
+                    selectPlan({ ...p, steps: p.steps.map((s) => ({ ...s })) });
                     setMessage("Saved copy resumed. Original sources are not loaded.");
                   }}
                 >
@@ -362,6 +366,7 @@ export function StudyProgress({
                         )
                       ) {
                         setActive(next);
+      selectPlan(next);
                         setEditing(null);
                       }
                     }}
@@ -412,7 +417,10 @@ export function StudyProgress({
                 </ol>
               </>
             )}
-            <button onClick={() => setActive(null)}>Close resumed plan</button>
+            <button onClick={() => {
+              clearPlanSelection();
+              setActive(null);
+            }}>Close resumed plan</button>
           </section>
         )}
       </details>

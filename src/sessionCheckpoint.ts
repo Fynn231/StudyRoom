@@ -23,10 +23,16 @@ export function readCheckpoint(storage: Pick<Storage, "getItem">): TimerCheckpoi
     return null;
   }
 }
-export function saveCheckpoint(storage: Pick<Storage, "setItem">, value: TimerCheckpoint) {
+export function saveCheckpoint(
+  storage: Pick<Storage, "setItem" | "getItem">,
+  value: TimerCheckpoint,
+): boolean {
   try {
     storage.setItem(CHECKPOINT_KEY, JSON.stringify(value));
-    return true;
+    const raw = storage.getItem(CHECKPOINT_KEY);
+    if (raw === null) return false;
+    const parsed = JSON.parse(raw);
+    return JSON.stringify(parsed) === JSON.stringify(value);
   } catch {
     return false;
   }

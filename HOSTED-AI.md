@@ -9,3 +9,7 @@ The user explicitly opts into sending the displayed intention or selected excerp
 Availability is not proof of a successful inference. `/api/ai/status` reports `liveVerified` only after a valid zero-cost response in that server session. This is ephemeral and resets when the service restarts.
 
 Full Spotify playback is separate: the in-page Web Playback SDK player requires Spotify Premium, existing app registration and explicit account authorization; embeds retain Spotify's own playback restrictions. No account playback is claimed from embed or synthetic test success.
+
+## Hybrid planning candidate
+
+The isolated hybrid branch adds a provider-independent tasks/deadlines scheduler with optional verified-free Qwen wording enhancement, per-user/shared quotas and account-save preparation. This candidate is not deployed by this implementation. The legacy generic free-router path remains separate, with shared admission controls; Qwen never silently falls back to it. See [hybrid architecture and release gates](docs/planning/hybrid-architecture.md). No currently free Qwen model was listed at the November 2 catalogue check; do not claim live Qwen inference or applied account-sync RLS.

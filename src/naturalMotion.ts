@@ -1,9 +1,13 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
 
-// Paired, stratified lanes keep equal visual weight on both sides at every
-// frame. Wind is bounded inside each lane; it cannot collect an entire field
-// against one edge. Every row keeps its own continuous, gentle sway.
+// Stratified rows keep equal coverage on both sides, without synchronizing
+// partners. Each body has its own bounded wind, fall acceleration and flutter;
+// row-sized bounds prevent the field from collecting at one edge or bunching.
 export const DECORATION_COUNT = 48;
+function motionSeed(index: number) {
+  const value = Math.sin((index + 1) * 127.1) * 43758.5453;
+  return value - Math.floor(value);
+}
 export function decorationPose(
   index: number,
   time: number,
@@ -15,23 +19,35 @@ export function decorationPose(
     side = index % 2;
   const size = 28 + (pair % 4) * 4;
   const scaledSize = width <= 600 ? size * 0.78 : size;
-  const field = Math.max(scaledSize + 12, Math.min(gutter, 240));
+  // Even a narrow gutter retains a little horizontal wind. Opaque reading
+  // surfaces stay above this decorative layer; nothing enters the centre lane.
+  const field = Math.max(scaledSize + 32, Math.min(gutter, 240));
   const room = Math.max(0, field - scaledSize - 16);
-  const lane = pair % 2 ? 0.72 : 0.28;
-  const phase = pair * 2.399963;
-  const sway = Math.sin(time * 0.19 + phase) * 0.12 + Math.sin(time * 0.071 + phase * 1.3) * 0.07;
+  const seed = motionSeed(index),
+    secondary = motionSeed(index + 71),
+    phase = index * 2.399963;
+  const lane = 0.18 + seed * 0.64;
+  const sway =
+    Math.sin(time * (0.13 + seed * 0.12) + phase) * 0.12 +
+    Math.sin(time * (0.05 + secondary * 0.08) + phase * 1.3) * 0.07;
   const x = 8 + room * Math.max(0.04, Math.min(0.96, lane + sway));
   const cycle = height + 128,
-    row = (pair * 11) % 24;
-  const progress = ((row + 0.5) / 24 + (time * 22) / cycle) % 1;
-  const y = progress * cycle - 64 + Math.sin(time * 0.23 + phase) * (cycle / 24) * 0.1;
+    row = (pair * 11) % 24,
+    spacing = cycle / 24;
+  // Different, smooth instantaneous descent rates, bounded within each row.
+  // The shared mean carries the whole field through the offscreen recycle zone
+  // while independent phases avoid mirrored, conveyor-belt choreography.
+  const fallOffset =
+    Math.sin(time * (0.25 + seed * 0.3) + phase) * spacing * 0.065 +
+    Math.sin(time * (0.06 + secondary * 0.07) + phase * 1.3) * spacing * 0.025;
+  const progress = ((row + 0.5) / 24 + (time * 22 + fallOffset) / cycle) % 1;
   return {
     x: side ? width - scaledSize - x : x,
-    y,
+    y: progress * cycle - 64,
     size,
-    tiltX: Math.sin(time * 0.31 + phase) * 14,
-    tiltY: Math.sin(time * 0.21 + phase) * 18 * (side ? -1 : 1),
-    rotation: (Math.sin(time * 0.17 + phase) * 24 + Math.sin(phase) * 50) * (side ? -1 : 1),
+    tiltX: Math.sin(time * (0.24 + seed * 0.14) + phase) * 14,
+    tiltY: Math.sin(time * (0.16 + secondary * 0.12) + phase) * 18,
+    rotation: Math.sin(time * (0.12 + seed * 0.1) + phase) * 24 + Math.sin(phase) * 50,
   };
 }
 export function useNaturalMotion(

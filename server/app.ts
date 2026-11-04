@@ -1,3 +1,7 @@
+import { AiCapacity } from "./aiCapacity.js";
+import { createHybridHandler } from "./hybridPlanning.js";
+import { cloudQwen } from "./qwenPlanning.js";
+import { freeAiConfig } from "./freeAi.js";
 import { validProfile } from "../src/profileModel.js";
 import { createServer, type RequestListener, type ServerResponse } from "node:http";
 import { randomBytes } from "node:crypto";
@@ -82,7 +86,15 @@ export function createStudyServer(
   for (const value of [...Object.values(roomLimits), ...Object.values(rateLimits), maxConnections])
     if (!Number.isSafeInteger(value) || value < 1)
       throw new Error("Safety limits must be positive safe integers.");
-  const inference = createInferenceHandler(aiConfig);
+  const capacity = new AiCapacity();
+  const inference = createInferenceHandler(aiConfig, freeAiConfig(), capacity);
+  const hybrid = createHybridHandler({
+    hosted,
+    origin: authConfig?.publicOrigin,
+    capacity,
+    provider: freeAiConfig() ? cloudQwen(freeAiConfig()!.key) : undefined,
+    account: authConfig,
+  });
   const music = createMusicHandler(undefined, {
     auth: authConfig,
     onListening(owner, track, target) {
@@ -215,8 +227,12 @@ export function createStudyServer(
       res.end(JSON.stringify({ ok: true }));
       return;
     }
+    if (req.url?.startsWith("/api/ai/hybrid/")) {
+      void hybrid(req, res, identity);
+      return;
+    }
     if (req.url?.startsWith("/api/ai/")) {
-      void inference(req, res);
+      void inference(req, res, identity?.user.id);
       return;
     }
     if (path === "/api/config" && (req.method === "GET" || req.method === "HEAD")) {
@@ -663,6 +679,7 @@ export function createStudyServer(
         guards.clear();
         music.close();
         inference.close();
+        hybrid.close();
         http.closeAllConnections();
         io.close(() => {
           rooms.clear();

@@ -9,6 +9,17 @@ async function stop() {
   await chrome.storage.local.remove("active");
 }
 async function sync() {
+  try {
+    return await reconcile();
+  } catch (error) {
+    // A lease/rule/alarm read or repair failure cannot establish bounded
+    // enforcement. Attempt to fail open; if rule removal also fails, preserve
+    // the existing alarm and report failure so Stop/disable remain explicit.
+    await stop();
+    throw error;
+  }
+}
+async function reconcile() {
   const { active } = await chrome.storage.local.get("active");
   if (
     !active ||
@@ -27,6 +38,33 @@ async function sync() {
   } catch {
     await stop();
     return null;
+  }
+  // A stored lease is intent, not proof of live browser enforcement. Do not
+  // recreate lost rules: a browser restart or manual removal must stay off.
+  const rules = await chrome.declarativeNetRequest.getSessionRules();
+  const expected = blockRules(active.domains);
+  const matches =
+    rules.length === expected.length &&
+    expected.every((rule) => {
+      const actual = rules.find((candidate) => candidate.id === rule.id);
+      return (
+        actual?.priority === rule.priority &&
+        actual.action?.type === "block" &&
+        actual.condition?.urlFilter === rule.condition.urlFilter &&
+        actual.condition?.resourceTypes?.length === 1 &&
+        actual.condition.resourceTypes[0] === "main_frame" &&
+        Object.keys(actual.condition).every((key) => ["urlFilter", "resourceTypes"].includes(key))
+      );
+    });
+  if (!matches) {
+    await stop();
+    return null;
+  }
+  // Alarms can be lost independently of session rules. Restore the original
+  // deadline on worker wake; never grant a fresh duration during recovery.
+  const alarm = await chrome.alarms.get("focus-end");
+  if (!alarm || alarm.scheduledTime !== active.endsAt || alarm.periodInMinutes) {
+    await chrome.alarms.create("focus-end", { when: active.endsAt });
   }
   return active;
 }

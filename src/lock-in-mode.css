@@ -160,25 +160,26 @@ button.wordmark:hover:not(:disabled) {
   outline-color: var(--locked-timer);
 }
 .lock-in-panel {
-  position: fixed;
-  bottom: 16px;
-  right: max(20px, calc((100vw - 1184px) / 2));
+  /* Keep the reversible mode action in its own row, never over a timer,
+     intention field or reading surface. Escape remains available when scrolled. */
+  position: relative;
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  max-width: calc(100% - 40px);
+  max-width: none;
+  margin: 0 0 16px;
   padding: 12px 16px;
   border: 1px solid #8c8c8c;
   border-radius: 4px;
   background: #090909;
   color: #f5f5f5;
-  box-shadow: 0 8px 30px #0008;
+  box-shadow: 0 3px 12px #0002;
 }
 .lock-in-panel .eyebrow {
   margin: 0 0 4px;
-  font-size: 0.62rem;
+  font-size: 0.75rem;
 }
 .lock-in-panel strong {
   font-family: ui-monospace, monospace;
@@ -191,9 +192,6 @@ button.wordmark:hover:not(:disabled) {
 }
 @media (max-width: 640px) {
   .lock-in-panel {
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
     max-width: none;
     gap: 12px;
     padding: 10px;

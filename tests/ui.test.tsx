@@ -68,7 +68,9 @@ test('two rendered clients operate the room while drafts remain private until ex
   fireEvent.change(qa.getByRole('textbox', { name: 'Invite code' }), { target: { value: code } });
   await click(qa, 'Join room');
   await waitFor(() => assert.ok(qb.getByText('Cedar')));
-  assert.ok(qa.getByRole('button', { name: 'Keep personal clock' }));
+  // The other client's presence broadcast can precede this client's join acknowledgement.
+  // Assert the local clock choice only once its own acknowledgement has rendered.
+  await waitFor(() => assert.ok(qa.getByRole('button', { name: 'Keep personal clock' })));
   assert.equal(qa.getByRole('timer').textContent, personalClock);
   assert.equal(b.container.textContent!.includes('SYNTHETIC PRIVATE DRAFT'), false);
   // Leave while a real create acknowledgement is in flight: no late reply may resurrect Party.

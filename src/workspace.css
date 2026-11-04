@@ -41,9 +41,9 @@ input[type="checkbox"] {
   accent-color: var(--accent);
 }
 .masthead {
-  margin-top: 24px;
-  min-height: 72px;
-  padding: 12px 24px;
+  margin-top: 16px;
+  min-height: 64px;
+  padding: 8px 24px;
   border: 1px solid var(--line);
   border-radius: 18px;
 }
@@ -51,12 +51,12 @@ input[type="checkbox"] {
   font-size: 1.65rem;
 }
 .page-heading {
-  margin: 24px 0 0;
-  padding: 24px 28px 16px;
+  margin: 12px 0 0;
+  padding: 12px 28px 8px;
   border-radius: 18px 18px 0 0;
 }
 h1 {
-  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-size: clamp(2rem, 3.6vw, 2.75rem);
 }
 .page-heading .eyebrow {
   margin-bottom: 8px;
@@ -65,12 +65,12 @@ h1 {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 0 28px 18px;
+  padding: 0 28px 12px;
   border-radius: 0;
 }
 .session-tools {
-  margin-bottom: 24px;
-  padding: 10px 18px;
+  margin-bottom: 14px;
+  padding: 8px 18px;
   border-top: 1px solid var(--line);
   border-radius: 0 0 18px 18px;
   gap: 12px;
@@ -121,16 +121,16 @@ h1 {
   grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
 }
 .focus-surface {
-  padding: 28px;
+  padding: 24px;
   border-color: #bccdb9;
   border-radius: 24px;
   box-shadow: 0 12px 35px #243b2510;
 }
 .timer-area {
-  padding: 45px 0 38px;
+  padding: 12px 0 10px;
 }
 .timer {
-  font-size: clamp(5rem, 9vw, 8.5rem);
+  font-size: clamp(5rem, 9vw, 7.5rem);
   color: #304d37;
 }
 .timer-caption {
@@ -138,6 +138,7 @@ h1 {
 }
 .timer-controls {
   gap: 14px;
+  padding-top: 14px;
 }
 .duration-field {
   width: 190px;
@@ -205,6 +206,54 @@ h1 {
 }
 .workspace-tools > details > summary {
   font-size: 0.875rem;
+}
+/* The same generous disclosure target across every optional surface. */
+:is(.workspace-tools, .optional-panel, .private-review, .appearance) summary {
+  min-height: 44px;
+  align-content: center;
+  padding-block: 10px;
+  line-height: 1.5;
+}
+:is(button, summary, input, textarea, select, a):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.appearance-presets button[aria-pressed="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.appearance-custom {
+  border-radius: 14px;
+}
+.workspace-tools > details[open] > summary,
+.optional-panel[open] > summary {
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+@media (min-width: 1100px) {
+  /* Keep onboarding available without making it the visual centre of the room. */
+  .quick-guide[open] {
+    display: flow-root;
+    padding: 12px 18px;
+    margin-block: 10px;
+  }
+  .quick-guide > summary {
+    margin-bottom: 8px;
+  }
+  .quick-guide[open] [role="tablist"] {
+    float: left;
+    width: 38%;
+    padding: 0;
+  }
+  .quick-guide[open] [role="tabpanel"] {
+    margin-left: 40%;
+    border-left: 1px solid var(--line);
+    padding-left: 24px;
+  }
+  .quick-guide[open] h2 {
+    margin-top: 0;
+  }
 }
 .optional-panel,
 .chime-controls,

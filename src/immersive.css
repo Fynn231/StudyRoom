@@ -1,7 +1,9 @@
 /* Shared scenery changes beneath stable, opaque reading surfaces. The timer,
    fields and provider iframe are never translated, blurred, or remounted. */
 .room-backdrop.lock-in-mode {
-  background: var(--normal-background) !important;
+  /* The canvas must agree with the viewport wash, including long documents,
+     screenshots and browsers repainting fixed layers during scrolling. */
+  background: var(--locked-background) !important;
 }
 .environment-wash {
   position: fixed;
@@ -93,7 +95,7 @@
   border: 0;
   padding: clamp(24px, 6vw, 100px);
   color: #283d31;
-  background: linear-gradient(135deg, #fffefb 0%, #dce8d7 62%, #a5c19a 100%);
+  background: linear-gradient(135deg, #ffffff 0%, #c4dcc5 62%, #80a879 100%);
   opacity: 1;
   transition: opacity 1.1s ease;
 }
@@ -148,6 +150,8 @@
   inset: 0;
   overflow: hidden;
   pointer-events: none;
+  /* Larger accents occupy the sides, leaving the copy quiet. */
+  mask-image: linear-gradient(90deg, #000 0 12%, #0002 30% 70%, #000 88% 100%);
 }
 .welcome-petals i {
   position: absolute;
@@ -160,8 +164,15 @@
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 80% 20% 65% 35%;
-  background: linear-gradient(145deg, #ffffffb0, #a9c49a80);
+  border-radius: 78% 22% 68% 32% / 58% 35% 65% 42%;
+  background:
+    radial-gradient(ellipse at 26% 20%, #fffef2 0%, #fffef260 34%, transparent 60%),
+    linear-gradient(115deg, #dce9c7 14%, #edf1da 42%, #9eaf82 51%, #bfd0a5 72%, #7a946a);
+  box-shadow:
+    inset 2px 1px 3px #fffef2b0,
+    inset -3px -2px 4px #506c4350,
+    1px 3px 4px #42623e15;
+  transform-origin: 50% 65%;
   animation: welcome-swirl var(--orbit-duration) ease-in-out var(--fall-delay) infinite;
   animation-direction: var(--orbit-direction);
 }
@@ -191,11 +202,20 @@
   }
 }
 @keyframes welcome-drift {
-  from {
-    transform: translate3d(0, -8vh, 0);
+  0% {
+    transform: translate3d(0, -8vh, 0) rotate(var(--tilt));
   }
-  to {
-    transform: translate3d(0, 116vh, 0);
+  23% {
+    transform: translate3d(calc(var(--wind) * 0.65), 17vh, 0) rotate(calc(var(--tilt) + 15deg));
+  }
+  51% {
+    transform: translate3d(calc(var(--wind) * -0.3), 48vh, 0) rotate(calc(var(--tilt) - 22deg));
+  }
+  76% {
+    transform: translate3d(var(--wind), 85vh, 0) rotate(calc(var(--tilt) + 32deg));
+  }
+  100% {
+    transform: translate3d(calc(var(--wind) * 0.2), 116vh, 0) rotate(var(--tilt));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -212,7 +232,8 @@
     animation: none !important;
   }
   .welcome-petals i {
-    top: 20%;
+    top: var(--rest-height);
+    transform: rotate(var(--tilt));
   }
 }
 @media (max-width: 600px) {

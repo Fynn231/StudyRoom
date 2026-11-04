@@ -74,10 +74,10 @@ export function saveSession(
   if (current.sessions.some((s) => s.id === record.id)) return { ok: true, duplicate: true };
   const next = [record, ...current.sessions].slice(0, MAX_SESSIONS);
   try {
-    storage?.setItem(SESSIONS_KEY, JSON.stringify(next));
-    const check = parseSessions(storage?.getItem(SESSIONS_KEY) ?? null);
-    if (check.blocked || !check.sessions.some((s) => s.id === record.id))
-      return { ok: false, error: "The save was not confirmed. Nothing was overwritten." };
+    const raw = JSON.stringify(next);
+    storage?.setItem(SESSIONS_KEY, raw);
+    if (storage?.getItem(SESSIONS_KEY) !== raw)
+      return { ok: false, error: "The save was not confirmed. Reopen history before retrying." };
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not save on this device. Nothing was overwritten." };
@@ -100,10 +100,10 @@ export function rateSession(
   if (index < 0) return { ok: false, error: "That session is not stored here." };
   const next = current.sessions.map((s, i) => (i === index ? { ...s, rating, focusRating } : s));
   try {
-    storage?.setItem(SESSIONS_KEY, JSON.stringify(next));
-    const check = loadSessions(storage);
-    if (check.blocked || check.sessions.filter((s) => s.id === id).length !== 1)
-      return { ok: false, error: "The rating was not confirmed. Nothing was overwritten." };
+    const raw = JSON.stringify(next);
+    storage?.setItem(SESSIONS_KEY, raw);
+    if (storage?.getItem(SESSIONS_KEY) !== raw)
+      return { ok: false, error: "The rating was not confirmed. Reopen history before retrying." };
     return { ok: true };
   } catch {
     return { ok: false, error: "Could not save feedback on this device." };

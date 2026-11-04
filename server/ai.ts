@@ -1,3 +1,4 @@
+import { AiCapacity, CapacityError } from "./aiCapacity.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { spawn } from "node:child_process";
 import { isAbsolute } from "node:path";
@@ -78,15 +79,18 @@ function infer(
 export function createInferenceHandler(
   config?: InferenceConfig,
   free: FreeAiConfig | undefined = freeAiConfig(),
+  capacity = new AiCapacity(),
 ) {
   assertLocalDeployment();
   const hosted = process.env.STUDY_DEPLOYMENT_MODE === "hosted";
   if (hosted) config = undefined;
-  let liveVerified = false,
-    busy = false;
-  const calls: number[] = [];
+  let liveVerified = false;
   const active = new Set<AbortController>();
-  const handle = async function (req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const handle = async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    userId = "local",
+  ): Promise<void> {
     const send = (status: number, data: unknown) => {
       if (!res.destroyed) {
         res.writeHead(status, {
@@ -171,17 +175,19 @@ export function createInferenceHandler(
         send(503, { error: "AI is not configured. The offline roadmap is still available." });
         return;
       }
-      const now = Date.now();
-      while (calls.length && calls[0] <= now - 60000) calls.shift();
-      if (busy || calls.length >= 4) {
-        send(429, {
-          error:
-            "AI is busy or its request limit was reached. Wait a minute; your plan is unchanged.",
-        });
-        return;
+      let release: () => void;
+      try {
+        release = capacity.acquire(userId);
+      } catch (error) {
+        if (error instanceof CapacityError) {
+          res.setHeader("Retry-After", String(error.retryAfter));
+          send(429, {
+            error: "AI is busy or its request limit was reached. Your plan is unchanged.",
+          });
+          return;
+        }
+        throw error;
       }
-      calls.push(now);
-      busy = true;
       try {
         const output = free
           ? await inferFree(free, request, controller.signal)
@@ -217,9 +223,11 @@ export function createInferenceHandler(
           Object.keys(envelope).sort().join("|") !== "plan|verification"
         )
           throw new Error("Missing provider verification");
+        capacity.outcome(true);
         liveVerified = true;
         send(200, { requestId: request.requestId, plan, verification });
       } catch (error) {
+        capacity.outcome(false);
         if (error instanceof FreeAiUnavailable)
           send(error.limited ? 429 : 503, {
             error: error.limited
@@ -232,7 +240,7 @@ export function createInferenceHandler(
               "AI could not return a valid plan. Your current progress is unchanged. Try the offline roadmap or retry explicitly.",
           });
       } finally {
-        busy = false;
+        release();
       }
     } catch {
       send(400, { error: "Could not read request." });

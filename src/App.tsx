@@ -16,6 +16,7 @@ import { StudyProfile, ProfileCard } from "./StudyProfile.js";
 import { ListeningCard, SpotifyPresence } from "./SpotifyPresence.js";
 import { readCheckpoint, saveCheckpoint } from "./sessionCheckpoint.js";
 import { parseSavedPlans, STUDY_PLANS_KEY } from "./savedStudyStore.js";
+import { readPlanSelection } from "./planSelection.js";
 import { Ambience } from "./Ambience.js";
 import { WelcomeScene, useWelcome } from "./WelcomeScene.js";
 import { Music } from "./Music.js";
@@ -29,17 +30,10 @@ import {
   type SessionRecord,
 } from "./sessionRecords.js";
 
-function countPlanSteps(): { done: number; total: number } {
-  for (const selector of [".session-plan", ".roadmap-panel", ".resumed-study-plan"]) {
-    const root = document.querySelector(selector);
-    if (!root) continue;
-    const boxes = [
-      ...root.querySelectorAll<HTMLInputElement>('.step-check input[type="checkbox"]'),
-    ];
-    if (boxes.length > 0)
-      return { done: boxes.filter((box) => box.checked).length, total: boxes.length };
-  }
-  return { done: 0, total: 0 };
+function countSelectedPlanSteps(plan: { steps: { done: boolean }[] } | null): { done: number; total: number } {
+  if (!plan || plan.steps.length === 0) return { done: 0, total: 0 };
+  const done = plan.steps.filter((s) => s.done).length;
+  return { done, total: plan.steps.length };
 }
 import { createFocusChime } from "./sound.js";
 import { Appearance, type FlowerEffect } from "./Appearance.js";
@@ -568,7 +562,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     const session = sessionRef.current;
     if (recordedRef.current === session.id) return;
     recordedRef.current = session.id;
-    const counted = countPlanSteps();
+    const counted = countSelectedPlanSteps(readPlanSelection());
     const record: SessionRecord = {
       id: session.id,
       completedAt: new Date().toISOString(),
@@ -1147,11 +1141,15 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
                 }
               />
             </details>
-            <GoalNotes commitment={draft} onChoose={setDraft}>
+            <GoalNotes
+              commitment={draft}
+              onChoose={setDraft}
+              availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
+            >
               <SessionIntention
                 requestSequence={planningRequest}
                 submitted={submitted}
-                availableMinutes={fresh ? durationMinutes : timer.durationMs / 60000}
+                availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
                 onDismiss={() => setSubmitted(null)}
               />
             </GoalNotes>

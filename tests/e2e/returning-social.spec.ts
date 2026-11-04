@@ -110,7 +110,12 @@ test("profiles are private until shared, scoped to room, editable without leakin
   }
 });
 test("actual optional extension blocks a chosen synthetic site and Stop restores access in an isolated Chromium profile", async ({}, info) => {
-  const fixture = createServer((_req, res) => res.end("Synthetic focus blocker fixture"));
+  let fixtureHits = 0;
+  const fixture = createServer((req, res) => {
+    if (req.url === "/focus-fixture") fixtureHits++;
+    res.setHeader("Cache-Control", "no-store");
+    res.end("Synthetic focus blocker fixture");
+  });
   await new Promise<void>((r) => fixture.listen(0, "127.0.0.1", r));
   const port = (fixture.address() as any).port;
   const path = resolve("extension");
@@ -131,25 +136,58 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
       context.serviceWorkers()[0] ??
       (await context.waitForEvent("serviceworker", { timeout: 15000 }));
     const id = new URL(worker.url()).host;
+    const target = await context.newPage();
+    const fixtureUrl = `http://focus-blocker.test:${port}/focus-fixture`;
+    await target.goto(fixtureUrl);
+    await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    const hitsBeforeBlocking = fixtureHits;
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);
     await popup.getByLabel("Website domains").fill("focus-blocker.test");
     await popup.getByLabel("Minutes", { exact: true }).fill("1");
     await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
     await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
-    const target = await context.newPage();
+    expect(
+      await worker.evaluate(() =>
+        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
+      ),
+    ).toHaveLength(1);
     let blocked = false;
     try {
-      await target.goto(`http://focus-blocker.test:${port}/`);
+      await target.goto(fixtureUrl);
     } catch (error) {
       blocked = String(error).includes("ERR_BLOCKED_BY_CLIENT");
     }
     expect(blocked).toBe(true);
+    expect(fixtureHits).toBe(hitsBeforeBlocking);
     await popup.screenshot({ path: info.outputPath("blocker-active.png") });
+    // The native alarm can disappear while real session rules remain. Reconcile
+    // the actual Chrome return shape and preserve the original deadline.
+    const originalDeadline = await worker.evaluate(async () => {
+      const api = (globalThis as any).chrome;
+      const { active } = await api.storage.local.get("active");
+      await api.alarms.clear("focus-end");
+      return active.endsAt;
+    });
+    await popup.getByRole("button", { name: "Check status", exact: true }).click();
+    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
+    await expect
+      .poll(() =>
+        worker.evaluate(
+          async () => (await (globalThis as any).chrome.alarms.get("focus-end"))?.scheduledTime,
+        ),
+      )
+      .toBe(originalDeadline);
     await popup.getByRole("button", { name: "Stop blocking now", exact: true }).click();
     await expect(popup.locator("#status")).toHaveText("Blocking is off.");
-    await target.goto(`http://focus-blocker.test:${port}/`);
+    expect(
+      await worker.evaluate(() =>
+        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
+      ),
+    ).toEqual([]);
+    await target.goto(fixtureUrl);
     await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    expect(fixtureHits).toBeGreaterThan(hitsBeforeBlocking);
     // Exercise actual worker recovery, not just rule construction.
     await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
     await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
@@ -165,7 +203,7 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
         (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
       ),
     ).toEqual([]);
-    await target.goto(`http://focus-blocker.test:${port}/`);
+    await target.goto(fixtureUrl);
     await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
   } finally {
     await context.close();

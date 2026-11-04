@@ -11,6 +11,17 @@
 .natural-flowers[data-running="true"] .flower {
   will-change: transform;
 }
+/* Widen only where the measured side lanes have room. Resize the SVG box,
+   not its transform coordinate system: scale would push the right lane offscreen.
+   The static translation keeps the existing managed centre point unchanged. */
+@media (min-width: 1400px) {
+  .natural-flowers .flower {
+    width: calc(var(--size) * 1.5);
+    height: calc(var(--size) * 1.5);
+    translate: calc(var(--size) * -0.25) calc(var(--size) * -0.25);
+    filter: drop-shadow(1px 3px 2px #40523b20);
+  }
+}
 @media (max-width: 600px) {
   .natural-flowers .flower {
     width: calc(var(--size) * 0.78);

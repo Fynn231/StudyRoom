@@ -1,3 +1,4 @@
+import { HybridPlanner } from "./planning/HybridPlanner.js";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { readGoalFiles, type GoalNote } from "./goalNotes.js";
 import { RoadmapPanel } from "./RoadmapPanel.js";
@@ -10,10 +11,12 @@ export function GoalNotes({
   commitment,
   onChoose,
   children,
+  availableMinutes,
 }: {
   commitment: string;
   onChoose: (text: string) => void;
   children?: ReactNode;
+  availableMinutes?: number;
 }) {
   const c = useCopy();
   const id = useId();
@@ -61,6 +64,7 @@ export function GoalNotes({
   return (
     <StudyProgress commitment={commitment} onChoose={onChoose}>
       {children}
+      <HybridPlanner availableMinutes={availableMinutes} />
       <details className="optional-panel goal-panel">
         <summary>{c("goalsSummary", "Goals / notes")}</summary>
         <p className="quiet-note">

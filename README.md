@@ -94,3 +94,7 @@ Auth/provider HTTP fixtures and model subprocess fixtures are **synthetic**. The
 Run `npm run format:check` before review; `npm run format` applies the pinned style to source, server, extension, scripts and browser tests. The GitHub Actions workflow runs formatting, strict typechecking, the default test suite and browser tests with Playwright's Chromium on Linux. Local macOS uses installed Chrome by default; set `CHROME_BIN` to choose another executable. The optional extension test uses Playwright's pinned Chromium and requires `npx playwright install chromium` locally.
 
 `STUDY_EXPECTED_REVISION=<full-reviewed-sha> npm run verify:deployment` checks the public deployed revision, tested local asset bytes, security headers and anonymous rejection of protected endpoints. It never attaches authentication and is not proof of signed-in provider behavior. Build locally first. Safari candidate commands and their Xcode/device limitations are documented in [extension/README.md](extension/README.md).
+
+## Hybrid planner candidate
+
+“Plan tasks & deadlines” builds an editable schedule locally, including progress, deadlines, available windows and breaks. Cloud Qwen is an optional, consented wording enhancement; it cannot change the schedule or start a timer. The isolated hybrid branch includes account-save code and an **unapplied** RLS migration. Existing device-local plans remain separate. See [architecture, limits and release gates](docs/planning/hybrid-architecture.md) before enabling or deploying this candidate.

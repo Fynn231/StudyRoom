@@ -21,6 +21,9 @@ export function FocusSetup({ onEnter, active = false }: FocusSetupProps = {}) {
             Focus view keeps your timer, intention and reviewed plan visible while hiding secondary
             tools. It never changes the room clock or starts a timer for you.
           </p>
+          <p className="quiet-note" role="status">
+            {active ? "Focus view is on. Your timer is unchanged." : "Focus view is off."}
+          </p>
           <button onClick={onEnter}>{active ? "Return to focus view" : "Enter focus view"}</button>
           <p className="quiet-note">
             Operational: timer, private planning, optional fullscreen and a reversible
@@ -50,6 +53,30 @@ export function FocusSetup({ onEnter, active = false }: FocusSetupProps = {}) {
           it is active. Blocking and your study timer start separately. New page loads are blocked;
           already-open media may continue. No content scripts, history collection or network
           telemetry.
+        </p>
+      </details>
+      <details>
+        <summary>Check or stop website blocking</summary>
+        <p className="quiet-note">
+          Blocker status is not connected to this page. Open the Study Room Focus Blocker from your
+          browser’s extensions menu and choose Check status in its popup. If it says blocking is
+          off, start a new block there only if you want one.
+        </p>
+        <ol className="focus-setup-steps">
+          <li>To end a block early, choose Stop blocking now in the extension popup.</li>
+          <li>
+            If Stop is not confirmed, disable or remove the extension in chrome://extensions or
+            edge://extensions. You do not need to wait for the timer.
+          </li>
+          <li>
+            Ending your study timer or leaving Focus view does not stop the blocker. Browser restart
+            clears blocking; reopen the popup to check before starting another session.
+          </li>
+        </ol>
+        <p className="quiet-note">
+          Expiry is checked when the extension wakes; browser sleep or suspension can delay cleanup.
+          Reload a previously blocked page after Stop is confirmed. Device Focus / Do Not Disturb
+          must be turned off manually in your device controls when you are ready.
         </p>
       </details>
       <ul className="focus-setup-steps">

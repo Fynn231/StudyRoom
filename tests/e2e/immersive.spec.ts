@@ -27,12 +27,18 @@ for (const width of [1440, 390])
       .getByRole("button", { name: "study room", exact: true })
       .click({ clickCount: 5, delay: 30 });
     await expect(page.locator(".lock-in-mode")).toBeVisible();
-    await page.waitForTimeout(300);
-    const middle = await page
-      .locator(".environment-wash")
-      .evaluate((e) => Number(getComputedStyle(e).opacity));
-    expect(middle).toBeGreaterThan(0);
-    expect(middle).toBeLessThan(1);
+    await expect(page.locator(".environment-wash")).toHaveAttribute("data-locked", "true");
+    await expect
+      .poll(
+        async () => {
+          const opacity = await page
+            .locator(".environment-wash")
+            .evaluate((e) => Number(getComputedStyle(e).opacity));
+          return opacity > 0 && opacity < 1;
+        },
+        { intervals: [16, 32, 64, 100] },
+      )
+      .toBe(true);
     await page.screenshot({ path: info.outputPath(`enter-mid-${width}.png`) });
     await expect(page.locator(".environment-wash")).toHaveCSS("opacity", "1");
     expect(await timer!.evaluate((e) => e.isConnected)).toBe(true);
@@ -41,12 +47,18 @@ for (const width of [1440, 390])
     );
     await page.screenshot({ path: info.outputPath(`locked-${width}.png`) });
     await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
-    await page.waitForTimeout(250);
-    const exiting = await page
-      .locator(".environment-wash")
-      .evaluate((e) => Number(getComputedStyle(e).opacity));
-    expect(exiting).toBeGreaterThan(0);
-    expect(exiting).toBeLessThan(1);
+    await expect(page.locator(".environment-wash")).toHaveAttribute("data-locked", "false");
+    await expect
+      .poll(
+        async () => {
+          const opacity = await page
+            .locator(".environment-wash")
+            .evaluate((e) => Number(getComputedStyle(e).opacity));
+          return opacity > 0 && opacity < 1;
+        },
+        { intervals: [16, 32, 64, 100] },
+      )
+      .toBe(true);
     await expect(page.locator(".environment-wash")).toHaveCSS("opacity", "0");
     expect(await timer!.evaluate((e) => e.isConnected)).toBe(true);
     await page.getByRole("button", { name: "Pause focus", exact: true }).click();

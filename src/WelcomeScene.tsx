@@ -102,13 +102,17 @@ export function WelcomeScene({
             key={i}
             style={
               {
-                left: `${4 + (i % 6) * 18}%`,
-                "--fall-duration": `${23 + ((i * 7) % 17)}s`,
-                "--fall-delay": `${-((i * 13) % 37)}s`,
-                "--orbit-duration": `${5 + ((i * 3) % 8)}s`,
-                "--orbit-width": `${22 + ((i * 17) % 65)}px`,
+                // Irrational steps avoid six repeating columns or synchronized rows.
+                left: `${3 + ((i * 0.61803398875) % 1) * 94}%`,
+                "--rest-height": `${5 + ((i * 0.41421356237) % 1) * 88}%`,
+                "--fall-duration": `${25 + ((i * 7.31) % 19)}s`,
+                "--fall-delay": `${-((i * 13.79) % 43)}s`,
+                "--orbit-duration": `${6 + ((i * 3.17) % 9)}s`,
+                "--orbit-width": `${24 + ((i * 17.39) % 72)}px`,
+                "--wind": `${(i % 2 ? -1 : 1) * (28 + ((i * 19.7) % 85))}px`,
+                "--tilt": `${-65 + ((i * 47.3) % 130)}deg`,
                 "--orbit-direction": i % 2 ? "reverse" : "normal",
-                "--leaf-size": `${10 + ((i * 7) % 9)}px`,
+                "--leaf-size": `${17 + ((i * 7.13) % 15)}px`,
               } as CSSProperties
             }
           >
