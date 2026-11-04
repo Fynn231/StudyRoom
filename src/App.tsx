@@ -30,7 +30,10 @@ import {
   type SessionRecord,
 } from "./sessionRecords.js";
 
-function countSelectedPlanSteps(plan: { steps: { done: boolean }[] } | null): { done: number; total: number } {
+function countSelectedPlanSteps(plan: { steps: { done: boolean }[] } | null): {
+  done: number;
+  total: number;
+} {
   if (!plan || plan.steps.length === 0) return { done: 0, total: 0 };
   const done = plan.steps.filter((s) => s.done).length;
   return { done, total: plan.steps.length };

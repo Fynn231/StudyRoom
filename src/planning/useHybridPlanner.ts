@@ -182,7 +182,9 @@ export function useHybridPlanner({ availableMinutes = 25 }: { availableMinutes?:
       try {
         if (!Array.isArray(value.plans) || value.plans.length > 20) throw Error();
         setSaved(value.plans.map(validateAccountPlan));
-        setActivePlanId(Array.isArray(value.plans) && value.plans.length ? value.plans[0].id : null);
+        setActivePlanId(
+          Array.isArray(value.plans) && value.plans.length ? value.plans[0].id : null,
+        );
         setMessage(
           "Saved schedules loaded. Choose one explicitly to review; your current plan is unchanged.",
         );

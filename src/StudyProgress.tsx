@@ -178,7 +178,7 @@ export function StudyProgress({
         )
       )
         setActive(stamped);
-        selectPlan(stamped);
+      selectPlan(stamped);
     } else {
       setActive(next);
       selectPlan(next);
@@ -366,7 +366,7 @@ export function StudyProgress({
                         )
                       ) {
                         setActive(next);
-      selectPlan(next);
+                        selectPlan(next);
                         setEditing(null);
                       }
                     }}
@@ -417,10 +417,14 @@ export function StudyProgress({
                 </ol>
               </>
             )}
-            <button onClick={() => {
-              clearPlanSelection();
-              setActive(null);
-            }}>Close resumed plan</button>
+            <button
+              onClick={() => {
+                clearPlanSelection();
+                setActive(null);
+              }}
+            >
+              Close resumed plan
+            </button>
           </section>
         )}
       </details>
