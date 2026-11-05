@@ -78,7 +78,10 @@ test("synthetic hosted direct planning flows from both buttons and Home preserve
       : r.fulfill({ status: 429, json: { error: "Synthetic free capacity limit" } });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByLabel("Your session intention", { exact: true }).fill("Review one chapter");
   expect(requests).toHaveLength(0);
   await page.getByRole("button", { name: "Plan session", exact: true }).click();
@@ -90,7 +93,10 @@ test("synthetic hosted direct planning flows from both buttons and Home preserve
   await page.getByRole("checkbox", { name: "Explain one idea", exact: true }).check();
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("checkbox", { name: "Explain one idea", exact: true })).toBeChecked();
   expect(requests).toHaveLength(1);
   await page

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
 import { usePrivateStorage } from "./privateStorage.js";
 export function useWelcome(enabled: boolean) {
   const storage = usePrivateStorage();
@@ -53,7 +53,8 @@ export function useWelcome(enabled: boolean) {
 export function WelcomeScene({
   leaving,
   onEnter,
-  onSkip,
+  onEscape,
+  sound,
   returning = false,
   canContinue = false,
   onContinue,
@@ -63,7 +64,8 @@ export function WelcomeScene({
   onContinue?: () => void;
   leaving: boolean;
   onEnter: () => void;
-  onSkip: () => void;
+  onEscape?: () => void;
+  sound?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -92,7 +94,7 @@ export function WelcomeScene({
       aria-describedby="welcome-note"
       onCancel={(e) => {
         e.preventDefault();
-        onSkip();
+        (onEscape ?? onEnter)();
       }}
     >
       {/* Separate fall/orbit transforms vary the swirl without per-frame React updates. */}
@@ -146,11 +148,10 @@ export function WelcomeScene({
               ? canContinue
                 ? "Continue last session"
                 : "Continue to Study Room"
-              : "Enter Study Room"}
+              : "Continue to Study Room"}
           </button>
-          <button onClick={onSkip}>Skip welcome</button>
         </div>
-        <p className="quiet-note">Enter quietly. Sound is always your choice.</p>
+        {sound}
       </div>
     </dialog>
   );

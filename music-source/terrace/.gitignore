@@ -1,0 +1,10 @@
+node_modules/
+GeneralUser-GS.sf2
+render.f32
+*.flac
+*.mp3
+*.log
+measurements.json
+__pycache__/
+score.mid
+score.musicxml

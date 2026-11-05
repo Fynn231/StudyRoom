@@ -354,7 +354,8 @@ test("provider output with changed model, paid/unconfirmed cost or invented bloc
 test("account transport binds owner/JWT, never takes a body owner or service role, validates saved data", async () => {
   const plan = schedule(input),
     identity = { user: { id: "user-A" }, token: "synthetic-user-jwt" };
-  let calls = 0;
+  let calls = 0,
+    posted = false;
   const config = {
     supabaseUrl: "https://project.supabase.co",
     anonKey: "public-anon",
@@ -365,9 +366,11 @@ test("account transport binds owner/JWT, never takes a body owner or service rol
       if (init?.method === "POST") {
         const body = JSON.parse(String(init.body));
         assert.equal(body.user_id, "user-A");
+        posted = true;
         return new Response(null, { status: 201 });
       }
       assert.equal(new URL(String(url)).searchParams.get("user_id"), "eq.user-A");
+      if (!posted) return Response.json([]);
       return Response.json([
         { id: "11111111-1111-4111-8111-111111111111", title: "Schedule", payload: { input, plan } },
       ]);
@@ -381,7 +384,7 @@ test("account transport binds owner/JWT, never takes a body owner or service rol
   });
   const loaded = await accountPlans(config, identity);
   assert.ok("plans" in loaded);
-  assert.equal(calls, 3); // insert, exact confirmation, then explicit library load
+  assert.equal(calls, 4); // exact-ID preflight, insert, exact confirmation, then library load
 });
 
 test("very large availability respects the exact rendering cap and carries unscheduled work forward", () => {

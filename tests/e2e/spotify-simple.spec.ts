@@ -79,7 +79,10 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
     (window as any).Spotify = { Player: FixturePlayer };
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .locator("summary")
     .filter({ hasText: /^Music$/ })

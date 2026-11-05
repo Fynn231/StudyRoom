@@ -2,9 +2,9 @@
 
 ## Baseline and source custody
 
-- Base: private `Fynn231/StudyRoom`, `review/render-release-20261026`, commit `afe4f7311526e9fd93a0d766c728c5076689b5cf`.
+- Base: `Fynn231/StudyRoom`, `review/render-release-20261026`, commit `afe4f7311526e9fd93a0d766c728c5076689b5cf`. **Historical privacy correction (November 4): the earlier report called this private; authenticated API inspection established that the repository and its review branches are PUBLIC.**
 - Verified live in the existing free Render service dashboard; built JS and CSS names also match the public deployment.
-- New implementation uses a separate checkout. Original `/Users/duality/Developer/StudyRoom` is unchanged; it is not a Git repository.
+- New implementation used a separate checkout. Original local `StudyRoom` prototype was unchanged; it was not a Git repository. This is a historical October 28 report, not current candidate validation; see `PROJECT_STATE.md`.
 - Local source backup: 169 selected source/config/test files, tar round-trip hashes verified. Release Git archive: 162 files restored and hashed identically in a private backup directory. Dependencies, credentials, personal imports and browser evidence are excluded from publication.
 - The Obsidian overview was readable. It describes an older local prototype; the current explicit handoff authorizes this review branch and the existing free service deployment.
 - Local source differs from the release in server trust checks and OAuth callback origin. Those older local changes were not applied: the deployed release's canonical origin, session validation and account separation remain intact. Personal AI runners remain excluded.

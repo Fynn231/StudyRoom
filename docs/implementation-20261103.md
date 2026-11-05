@@ -6,7 +6,7 @@ Verified locally: November 3, 2026, America/New_York.
 
 **IMPLEMENTED, TESTED and INTEGRATED LOCALLY. Not deployed or user-accepted.**
 
-Active checkout: `/Users/duality/Developer/StudyRoom-review-20261028`, branch `review/hybrid-planning-20261102`, HEAD `f6fb7c5a8a92ac5d0baa49f6866b5a27f20bbf48`. HEAD did not change: this milestone is uncommitted. The older non-Git `/Users/duality/Developer/StudyRoom` prototype was not edited. Existing unfinished hybrid-planning changes were preserved.
+Historical review checkout: `StudyRoom-review-20261028`, branch `review/hybrid-planning-20261102`, HEAD `f6fb7c5a8a92ac5d0baa49f6866b5a27f20bbf48`. HEAD did not change during this November 3 milestone: it was uncommitted at that time. The older non-Git `StudyRoom` prototype was not edited. Existing unfinished hybrid-planning changes were preserved. Later commits and the current integration branch are recorded in `PROJECT_STATE.md`; this report is not current-tree validation.
 
 ## Implemented
 

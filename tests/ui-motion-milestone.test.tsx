@@ -19,7 +19,7 @@ test("welcome distributes its static composition and pauses hidden without addin
     cleanup();
     dom.window.close();
   });
-  const view = render(<WelcomeScene leaving={false} onEnter={() => {}} onSkip={() => {}} />);
+  const view = render(<WelcomeScene leaving={false} onEnter={() => {}} />);
   const petals = [...view.container.querySelectorAll<HTMLElement>(".welcome-petals i")];
   assert.equal(petals.length, 18);
   assert.equal(new Set(petals.map((e) => e.style.left)).size, 18);

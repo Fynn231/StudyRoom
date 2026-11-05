@@ -3,7 +3,10 @@ import { resolve } from "node:path";
 import { createServer } from "node:http";
 async function enter(page: any) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("timer")).toBeVisible();
 }
 test("returning home restores a paused checkpoint; focus view is reversible and never claims system DND", async ({
@@ -225,7 +228,12 @@ test("closing untouched tabs preserves the prior checkpoint; active reset still 
   const saved = await read();
   expect(saved).toBeTruthy();
   const idle = await context.newPage();
-  await enter(idle);
+  await idle.goto("/");
+  await expect(idle.getByRole("dialog")).toBeVisible();
+  // Continue last session deliberately restores the timer. Escape is an
+  // untouched visit and must not replace the other tab's checkpoint.
+  await idle.keyboard.press("Escape");
+  await expect(idle.getByRole("dialog")).toHaveCount(0);
   await idle.goto("about:blank");
   await idle.close();
   expect(await read()).toBe(saved);
@@ -247,7 +255,10 @@ test("device Focus confirmation is a visit-only self-report, never restored as O
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .locator("summary")
     .filter({ hasText: /^Protect your focus$/ })
@@ -261,7 +272,10 @@ test("device Focus confirmation is a visit-only self-report, never restored as O
     page.getByText("Recorded as your own confirmation for this visit only.", { exact: false }),
   ).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .locator("summary")
     .filter({ hasText: /^Protect your focus$/ })

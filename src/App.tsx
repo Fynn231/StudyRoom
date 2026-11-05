@@ -16,9 +16,10 @@ import { StudyProfile, ProfileCard } from "./StudyProfile.js";
 import { ListeningCard, SpotifyPresence } from "./SpotifyPresence.js";
 import { readCheckpoint, saveCheckpoint } from "./sessionCheckpoint.js";
 import { parseSavedPlans, STUDY_PLANS_KEY } from "./savedStudyStore.js";
-import { readPlanSelection } from "./planSelection.js";
-import { Ambience } from "./Ambience.js";
+import { PlanSelectionProvider, usePlanSelection } from "./planSelection.js";
+import { Ambience, WelcomeSound } from "./Ambience.js";
 import { WelcomeScene, useWelcome } from "./WelcomeScene.js";
+import { useRoomAmbience } from "./useRoomAmbience.js";
 import { Music } from "./Music.js";
 import { FocusSetup } from "./FocusSetup.js";
 import { CopyContext, lockedCopy, normalCopy } from "./lockInCopy.js";
@@ -54,6 +55,14 @@ import {
 
 type Snapshot = { room: RoomState; receivedAt: number };
 export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?: boolean }) {
+  return (
+    <PlanSelectionProvider>
+      <SessionApp endpoint={endpoint} welcome={welcome} />
+    </PlanSelectionProvider>
+  );
+}
+function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?: boolean }) {
+  const planSelection = usePlanSelection();
   const storage = usePrivateStorage();
   const sessionStorage = usePrivateStorage("sessionStorage");
   const {
@@ -121,8 +130,21 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
   const [completion, setCompletion] = useState<SessionRecord | null>(null);
   const [completionFirst, setCompletionFirst] = useState(false);
   const [storageError, setStorageError] = useState("");
-  const sessionRef = useRef<{ id: string; plannedMs: number } | null>(null);
-  const recordedRef = useRef<string | null>(null);
+  type Cycle = { id: string; plannedMs: number; focusedMs: number };
+  const sessionRef = useRef<{ personal: Cycle | null; room: Cycle | null }>({
+    personal: null,
+    room: null,
+  });
+  const recordedRef = useRef(new Set<string>());
+  const personalCredit = useRef<{ remaining: number; participating: boolean } | null>(null);
+  const roomCredit = useRef<{
+    code: string;
+    durationMs: number;
+    remaining: number;
+    participating: boolean;
+    endsAt: number | null;
+  } | null>(null);
+  const roomAmbience = useRoomAmbience(lockIn);
   const lockInTouched = useRef(false);
   const brandPresses = useRef<number[]>([]);
   const modeTransition = useRef<ViewTransition | null>(null),
@@ -265,6 +287,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
   const [checkpoint, setCheckpoint] = useState(() => readCheckpoint(storage));
   const checkpointActive = useRef(false);
   const [resumeMessage, setResumeMessage] = useState("");
+  const [checkpointError, setCheckpointError] = useState("");
   const [hasSavedPlan] = useState(() => {
     try {
       return parseSavedPlans(storage.getItem(STUDY_PLANS_KEY)).plans.length > 0;
@@ -292,7 +315,13 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
         ),
         savedAt: Date.now(),
       };
-      if (saveCheckpoint(storage, value)) setCheckpoint(value);
+      if (saveCheckpoint(storage, value)) {
+        setCheckpoint(value);
+        setCheckpointError("");
+      } else
+        setCheckpointError(
+          "Timer checkpoint could not be saved. This timer still works in this tab; any previous saved checkpoint is unchanged when storage rejects the write. Reopening may restore an older timer.",
+        );
       if (value.remainingMs === 0) clearInterval(interval);
     };
     // Only timer state is remembered, never raw intentions, imported notes or AI excerpts.
@@ -311,7 +340,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     if (previous) {
       setPersonal({
         durationMs: previous.durationMs,
-        remainingMs: previous.remainingMs || previous.durationMs,
+        remainingMs: previous.remainingMs,
         endsAt: null,
       });
       setPersonalMinutes(String(previous.durationMs / 60000));
@@ -508,14 +537,17 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     )
       return;
     if (action === "reset") {
-      sessionRef.current = null;
-      recordedRef.current = null;
+      if (!sharedClock) sessionRef.current.personal = null;
       setCompletion(null);
       setStorageError("");
     }
-    if (action === "start" && fresh) {
-      sessionRef.current = { id: crypto.randomUUID(), plannedMs: durationMinutes! * 60000 };
-      recordedRef.current = null;
+    if (action === "start" && !sharedClock && !sessionRef.current.personal) {
+      sessionRef.current.personal = {
+        id: crypto.randomUUID(),
+        plannedMs: fresh ? durationMinutes! * 60000 : timer.durationMs,
+        focusedMs: 0,
+      };
+
       setCompletion(null);
       setStorageError("");
     }
@@ -559,17 +591,14 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
   }
   // tick projects independent private deadlines and authoritative room snapshots.
   void tick;
-  // Completion opens only when a started cycle actually reaches zero.
-  useEffect(() => {
-    if (remaining !== 0 || !sessionRef.current) return;
-    const session = sessionRef.current;
-    if (recordedRef.current === session.id) return;
-    recordedRef.current = session.id;
-    const counted = countSelectedPlanSteps(readPlanSelection());
+  function completeCycle(session: Cycle) {
+    if (recordedRef.current.has(session.id)) return;
+    recordedRef.current.add(session.id);
+    const counted = countSelectedPlanSteps(planSelection.current);
     const record: SessionRecord = {
       id: session.id,
       completedAt: new Date().toISOString(),
-      focusedMs: session.plannedMs,
+      focusedMs: Math.round(session.focusedMs),
       plannedMs: session.plannedMs,
       stepsDone: counted.done,
       stepsTotal: counted.total,
@@ -582,7 +611,72 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
     setStorageError(saved.ok ? "" : (saved.error ?? "The session could not be saved."));
     setCompletion(record);
     if (saved.ok) markCreatorNoteSeen(storage);
-  }, [remaining]);
+  }
+  // The private clock continues even when a different clock is displayed.
+  useEffect(() => {
+    const left = Math.max(
+      0,
+      personal.endsAt === null ? personal.remainingMs : personal.endsAt - performance.now(),
+    );
+    const previous = personalCredit.current,
+      cycle = sessionRef.current.personal;
+    if (cycle && previous?.participating) cycle.focusedMs += Math.max(0, previous.remaining - left);
+    // Clock selection owns participation; concurrent deadlines never double-credit time.
+    personalCredit.current = {
+      remaining: left,
+      participating: !sharedClock && personal.endsAt !== null,
+    };
+    if (left === 0 && cycle) completeCycle(cycle);
+  }, [tick, personal, sharedClock]);
+  useEffect(() => {
+    if (!room || !snapshot) {
+      roomCredit.current = null;
+      sessionRef.current.room = null;
+      return;
+    }
+    const timer = room.timer;
+    const left = Math.max(
+      0,
+      timer.endsAt === null
+        ? timer.remainingMs
+        : timer.endsAt - (room.serverNow + performance.now() - snapshot.receivedAt),
+    );
+    const previous = roomCredit.current;
+    const reset =
+      !previous ||
+      previous.code !== room.code ||
+      previous.durationMs !== timer.durationMs ||
+      (timer.endsAt === null && timer.remainingMs === timer.durationMs) ||
+      (previous.remaining === 0 && left > 0) ||
+      (timer.endsAt !== null &&
+        previous.endsAt !== null &&
+        timer.endsAt !== previous.endsAt &&
+        timer.remainingMs === timer.durationMs);
+    if (reset) sessionRef.current.room = null;
+    const participating = sharedClock && connected;
+    if (
+      !sessionRef.current.room &&
+      participating &&
+      left > 0 &&
+      !(timer.endsAt === null && left === timer.durationMs)
+    )
+      sessionRef.current.room = {
+        id: crypto.randomUUID(),
+        plannedMs: timer.durationMs,
+        focusedMs: 0,
+      };
+    const cycle = sessionRef.current.room;
+    if (cycle && previous && !reset && previous.participating)
+      cycle.focusedMs += Math.max(0, previous.remaining - left);
+    roomCredit.current = {
+      code: room.code,
+      durationMs: timer.durationMs,
+      remaining: left,
+      participating,
+      endsAt: timer.endsAt,
+    };
+    if (left === 0 && cycle && cycle.focusedMs > 0) completeCycle(cycle);
+  }, [tick, snapshot, sharedClock, connected]);
 
   return (
     <CopyContext.Provider value={c}>
@@ -805,6 +899,11 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
                   </button>
                 )}
               </details>
+            )}
+            {checkpointError && (
+              <p role="status" className="quiet-note">
+                {checkpointError}
+              </p>
             )}
             {resumeMessage && (
               <p role="status" className="quiet-note">
@@ -1117,7 +1216,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
             </div>
             <div className="workspace-tools">
               <Music lockIn={lockIn} activation={musicActivation} />
-              <Ambience locked={lockIn} onWelcome={showHome} />
+              <Ambience room={roomAmbience} onWelcome={showHome} />
               <FocusSetup
                 onEnter={() => {
                   setFocusView(true);
@@ -1235,10 +1334,20 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
           <WelcomeScene
             returning={welcomeReturning}
             canContinue={!!checkpoint || hasSavedPlan || !!draft}
-            onContinue={continueLastSession}
+            onContinue={() => {
+              roomAmbience.prepare();
+              continueLastSession();
+            }}
             leaving={welcomeLeaving}
-            onEnter={() => closeWelcome(true)}
-            onSkip={() => closeWelcome(false)}
+            onEnter={() => {
+              roomAmbience.prepare();
+              closeWelcome(true);
+            }}
+            onEscape={() => {
+              roomAmbience.prepare();
+              closeWelcome(false);
+            }}
+            sound={<WelcomeSound room={roomAmbience} />}
           />
         )}
         <SessionComplete

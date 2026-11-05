@@ -6,7 +6,10 @@ test("hybrid planning works offline, requires cloud consent, preserves edits on 
   // Keep the fixture's availability in the future without freezing timer/animation callbacks.
   await page.clock.setFixedTime(new Date("2026-11-03T08:00:00"));
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .locator("summary")
     .filter({ hasText: /^Plan tasks & deadlines$/ })
@@ -55,10 +58,8 @@ test("hybrid planning works offline, requires cloud consent, preserves edits on 
   ).toBeDisabled();
   await expect(page.getByRole("timer")).toHaveText("25:00");
   await expect(page.getByRole("button", { name: "Start focus", exact: true })).toBeVisible();
-  await page
-    .getByRole("button", { name: "Approve and save schedule to account", exact: true })
-    .click();
-  await expect(page.getByRole("alert")).toContainText("Account sync");
+  await page.getByRole("button", { name: "Save as new copy to account", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Sign in required.");
   await expect(
     page.getByRole("textbox", { name: "Block 1 instructions", exact: true }),
   ).toHaveValue("My private edited instruction");

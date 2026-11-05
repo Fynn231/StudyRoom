@@ -12,7 +12,7 @@ async function worker(
 ) {
   const data: Record<string, any> = active ? { active: structuredClone(active) } : {};
   let rules = structuredClone(initialRules);
-  let alarm: { scheduledTime: number } | undefined;
+  const alarms = new Map<string, { scheduledTime: number }>();
   const failures = new Set<string>();
   const listeners: Record<string, Function> = {};
   const check = (name: string) => {
@@ -39,9 +39,13 @@ async function worker(
     },
     storage: {
       local: {
-        get: async () => {
+        get: async (keys: string | string[]) => {
           check("read");
-          return structuredClone(data);
+          return Object.fromEntries(
+            (Array.isArray(keys) ? keys : [keys])
+              .filter((key) => key in data)
+              .map((key) => [key, structuredClone(data[key])]),
+          );
         },
         set: async (value: any) => {
           check("write");
@@ -54,17 +58,17 @@ async function worker(
       },
     },
     alarms: {
-      get: async () => {
+      get: async (name: string) => {
         check("alarmGet");
-        return alarm;
+        return alarms.get(name);
       },
-      create: async (_name: string, value: { when: number }) => {
+      create: async (name: string, value: { when: number }) => {
         check("alarmCreate");
-        alarm = { scheduledTime: value.when };
+        alarms.set(name, { scheduledTime: value.when });
       },
-      clear: async () => {
+      clear: async (name: string) => {
         check("alarmClear");
-        alarm = undefined;
+        alarms.delete(name);
         return true;
       },
       onAlarm: {
@@ -88,10 +92,58 @@ async function worker(
     },
   };
   Object.assign(globalThis, { chrome });
-  await import(`../extension/background.js?test=${crypto.randomUUID()}`);
+  const source = (
+    await readFile(new URL("../extension/background.js", import.meta.url), "utf8")
+  ).replace(/^import .*;\n/, "");
+  let now = Date.now();
+  let context = vm.createContext({
+    chrome,
+    normalizeDomains,
+    blockRules,
+    Date: class extends Date {
+      static now() {
+        return now;
+      }
+    },
+  });
+  vm.runInContext(source, context);
+  await vm.runInContext("queue", context);
   const send = (message: any): Promise<any> =>
-    new Promise((resolve) => listeners.message(message, { id: chrome.runtime.id }, resolve));
-  return { send, data, failures, listeners, rules: () => rules, alarm: () => alarm };
+    new Promise((resolve) =>
+      listeners.message(message, { id: chrome.runtime.id }, (value: any) =>
+        resolve(structuredClone(value)),
+      ),
+    );
+  return {
+    send,
+    data,
+    failures,
+    listeners,
+    rules: () => rules,
+    alarm: () => alarms.get("focus-end"),
+    alarms,
+    reboot: async () => {
+      context = vm.createContext({
+        chrome,
+        normalizeDomains,
+        blockRules,
+        Date: class extends Date {
+          static now() {
+            return now;
+          }
+        },
+      });
+      vm.runInContext(source, context);
+      await vm.runInContext("queue", context);
+    },
+    fire: async (name: string, scheduledTime?: number) => {
+      const when = scheduledTime ?? alarms.get(name)?.scheduledTime ?? now;
+      now = Math.max(now, when);
+      alarms.delete(name);
+      listeners.alarm({ name, scheduledTime: when });
+      await vm.runInContext("queue", context);
+    },
+  };
 }
 
 const lease = () => ({ domains: ["example.com"], endsAt: Date.now() + 60000 });
@@ -232,6 +284,9 @@ test("failed rule removal never confirms Stop, preserves expiry and permits retr
   assert.equal((await w.send({ type: "stop" })).ok, false);
   assert.deepEqual(w.rules(), blockRules(active.domains));
   assert.equal(w.alarm()?.scheduledTime, active.endsAt);
+  const status = await w.send({ type: "status" });
+  assert.equal(status.ok, false, "live lease plus matching rules cannot hide failed Stop cleanup");
+  assert.match(status.error, /disable or remove/);
   w.failures.delete("rulesUpdate");
   assert.deepEqual(await w.send({ type: "stop" }), { ok: true, active: null });
   assert.deepEqual(w.rules(), []);
@@ -261,4 +316,149 @@ test("storage read failure fails open and does not poison the next command", asy
   assert.deepEqual(w.rules(), []);
   w.failures.delete("read");
   assert.deepEqual(await w.send({ type: "status" }), { ok: true, active: null });
+});
+
+test("failed retry alarm creation is repaired by manual Stop without resetting bounded intent", async () => {
+  const active = lease();
+  const w = await worker(active);
+  w.failures.add("rulesUpdate");
+  w.failures.add("alarmCreate");
+  assert.equal((await w.send({ type: "stop" })).ok, false);
+  const original = structuredClone(w.data.cleanup);
+  assert.equal(original.attempt, 1);
+  assert.equal(w.alarms.has("focus-cleanup-1"), false);
+  w.failures.delete("alarmCreate");
+  assert.equal((await w.send({ type: "stop" })).ok, false);
+  assert.deepEqual(w.data.cleanup, original);
+  assert.equal(w.alarm()?.scheduledTime, active.endsAt);
+  assert.equal(
+    w.alarms.get("focus-cleanup-1")?.scheduledTime,
+    original.retryAt,
+    "manual Stop must repair the missing wake-up at its original retry time",
+  );
+});
+
+test("stale and duplicate cleanup alarms cannot rewind attempts or stop a replacement lease", async () => {
+  const w = await worker(lease());
+  w.failures.add("rulesUpdate");
+  await w.send({ type: "stop" });
+  const first = structuredClone(w.data.cleanup);
+  await w.fire("focus-cleanup-1", first.retryAt);
+  const second = structuredClone(w.data.cleanup);
+  assert.equal(second.attempt, 2);
+  await w.fire("focus-cleanup-1", first.retryAt);
+  assert.deepEqual(
+    w.data.cleanup,
+    second,
+    "duplicate delivery must not reset attempt or retry deadline",
+  );
+  w.failures.delete("rulesUpdate");
+  assert.equal((await w.send({ type: "stop" })).ok, true);
+  const started = await w.send({ type: "start", domains: "example.com", minutes: 3 });
+  assert.equal(started.ok, true);
+  await w.fire("focus-cleanup-2", second.retryAt);
+  const status = await w.send({ type: "status" });
+  assert.deepEqual(status.active, started.active, "old cleanup cannot remove a newer lease");
+});
+
+test("failed cleanup storage write cannot reset attempts on repeated Stop or lose alarm-driven progress", async () => {
+  const active = lease();
+  const w = await worker(active);
+  w.failures.add("rulesUpdate");
+  w.failures.add("write");
+  assert.equal((await w.send({ type: "stop" })).ok, false);
+  const first = w.alarms.get("focus-cleanup-1")!.scheduledTime;
+  assert.equal(w.data.cleanup, undefined);
+  await w.fire("focus-cleanup-1", first);
+  assert.ok(
+    w.alarms.has("focus-cleanup-2"),
+    "alarm-persisted/state-failed cleanup must advance rather than silently disappear",
+  );
+  const second = w.alarms.get("focus-cleanup-2")!.scheduledTime;
+  w.failures.delete("write");
+  assert.equal((await w.send({ type: "stop" })).ok, false);
+  const cleanup = Reflect.get(w.data, "cleanup");
+  assert.ok(cleanup);
+  assert.equal(
+    cleanup.attempt,
+    2,
+    "manual retry must repair persistence without resetting attempt",
+  );
+  assert.equal(cleanup.retryAt, second);
+  assert.equal(w.data.active.endsAt, active.endsAt);
+});
+
+test("worker restart prefers surviving later alarm over an older persisted cleanup attempt", async () => {
+  const w = await worker(lease());
+  w.failures.add("rulesUpdate");
+  await w.send({ type: "stop" });
+  w.failures.add("write");
+  await w.fire("focus-cleanup-1");
+  assert.equal(w.data.cleanup.attempt, 1);
+  const second = w.alarms.get("focus-cleanup-2")!.scheduledTime;
+  await w.reboot();
+  w.failures.delete("write");
+  assert.equal((await w.send({ type: "stop" })).ok, false);
+  assert.equal(w.data.cleanup.attempt, 2, "restart must not reset to stale persisted attempt");
+  assert.equal(w.data.cleanup.retryAt, second);
+});
+
+test("exhausted and malformed cleanup remain errors without automatic budget reset", async () => {
+  for (const cleanup of [
+    { attempt: 6, retryAt: 123, exhausted: true },
+    { attempt: "bad", retryAt: null },
+  ]) {
+    const w = await worker(lease());
+    w.data.cleanup = structuredClone(cleanup);
+    w.failures.add("rulesUpdate");
+    await w.reboot();
+    for (const type of ["stop", "status", "stop"]) {
+      const result = await w.send({ type });
+      assert.equal(result.ok, false);
+      assert.match(result.error, /disable or remove/);
+    }
+    assert.deepEqual(w.data.cleanup, cleanup);
+    assert.equal([...w.alarms.keys()].filter((name) => name.startsWith("focus-cleanup")).length, 0);
+    w.failures.delete("rulesUpdate");
+    assert.equal((await w.send({ type: "stop" })).ok, true);
+    assert.equal(w.data.cleanup, undefined);
+  }
+});
+
+test("storage removal and alarm clearing failures never confirm Stop and permit explicit recovery", async () => {
+  for (const failure of ["remove", "alarmClear"]) {
+    const w = await worker(lease());
+    w.failures.add(failure);
+    const result = await w.send({ type: "stop" });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /disable or remove/);
+    const cleanup = structuredClone(w.data.cleanup);
+    assert.equal((await w.send({ type: "stop" })).ok, false);
+    assert.deepEqual(w.data.cleanup, cleanup);
+    w.failures.delete(failure);
+    assert.equal((await w.send({ type: "stop" })).ok, true);
+    assert.equal(w.data.active, undefined);
+    assert.equal(w.data.cleanup, undefined);
+    assert.equal(w.alarms.size, 0);
+  }
+});
+
+test("stale expiry and out-of-order cleanup delivery preserve the newer deadline and high-water mark", async () => {
+  const w = await worker(lease());
+  const oldDeadline = w.data.active.endsAt;
+  const started = await w.send({ type: "start", domains: "example.com", minutes: 3 });
+  await w.fire("focus-end", oldDeadline);
+  assert.deepEqual((await w.send({ type: "status" })).active, started.active);
+  w.failures.add("rulesUpdate");
+  await w.send({ type: "stop" });
+  const first = structuredClone(w.data.cleanup);
+  await w.fire("focus-cleanup-1");
+  await w.fire("focus-cleanup-2");
+  const third = structuredClone(w.data.cleanup);
+  await w.fire("focus-cleanup-1", first.retryAt);
+  assert.deepEqual(w.data.cleanup, third);
+  w.failures.add("read");
+  await w.fire("focus-cleanup-3");
+  w.failures.delete("read");
+  assert.equal(w.data.cleanup.attempt, 4);
 });

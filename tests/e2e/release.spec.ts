@@ -3,9 +3,13 @@ import AxeBuilder from "@axe-core/playwright";
 
 async function ready(page: Page) {
   await page.goto("/");
-  const welcome = page.getByRole("button", { name: "Skip welcome", exact: true });
+  const welcome = page.getByRole("button", {
+    name: /^Continue (?:to Study Room|last session)$/,
+    exact: true,
+  });
   await Promise.race([welcome.waitFor(), page.getByRole("timer").waitFor()]);
   if (await welcome.isVisible()) await welcome.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("timer")).toBeVisible();
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
 }

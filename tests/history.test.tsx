@@ -16,7 +16,7 @@ test('malformed and unavailable device storage fail safely without importing or 
     const view = render(<App />); const q = within(view.container);
     fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
     fireEvent.click(q.getByLabelText('Store history on this device'));
-    assert.match(q.getByRole('alert').textContent!, /not loaded/i);
+    assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /not loaded/i);
     assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
     assert.ok(q.getByText('No private sessions yet.'));
     assert.equal(dom.window.localStorage.getItem(key), raw, 'invalid data must not be silently overwritten');
@@ -28,9 +28,9 @@ test('malformed and unavailable device storage fail safely without importing or 
   const view = render(<App />); const q = within(view.container);
   fireEvent.click(q.getByText('Private history', { selector: 'summary' }));
   fireEvent.click(q.getByLabelText('Store history on this device'));
-  assert.match(q.getByRole('alert').textContent!, /not loaded/i);
+  assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /not loaded/i);
   fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
-  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+  assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /could not delete/i);
   fireEvent.click(q.getByRole('button', { name: 'Finish privately' }));
   fireEvent.click(q.getByRole('button', { name: 'Save private reflection' }));
   assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 1);
@@ -82,8 +82,8 @@ test('device write and deletion failures retain usable private memory and report
   dom.window.Storage.prototype.setItem = () => { throw new Error('Synthetic quota'); };
   fireEvent.click(q.getByRole('button', { name: 'Finish privately' }));
   fireEvent.click(q.getByRole('button', { name: 'Save private reflection' }));
-  assert.match(q.getByRole('alert').textContent!, /could not save/i);
-  assert.equal(!!q.getByRole('alert').closest('details'), false, 'storage failures must stay visible even with history collapsed');
+  assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /could not save/i);
+  assert.equal(!!within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').closest('details'), false, 'storage failures must stay visible even with history collapsed');
   fireEvent.click(q.getByText('Private history (1)', { selector: 'summary' }));
   assert.equal(within(view.container.querySelector<HTMLElement>('.history')!).getAllByRole('listitem').length, 1);
   assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
@@ -92,9 +92,9 @@ test('device write and deletion failures retain usable private memory and report
   fireEvent.click(q.getByLabelText('Store history on this device'));
   dom.window.Storage.prototype.removeItem = () => { throw new Error('Synthetic deletion blocked'); };
   fireEvent.click(q.getByLabelText('Store history on this device'));
-  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+  assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /could not delete/i);
   assert.equal((q.getByLabelText('Store history on this device') as HTMLInputElement).checked, false);
   fireEvent.click(q.getByRole('button', { name: 'Clear private history' }));
   assert.ok(q.getByText('No private sessions yet.'));
-  assert.match(q.getByRole('alert').textContent!, /could not delete/i);
+  assert.match(within(q.getByRole('region', { name: 'Private reflection and history' })).getByRole('alert').textContent!, /could not delete/i);
 });

@@ -16,7 +16,7 @@ import {
   type PlanDraft,
   type SavedPlan,
 } from "./savedStudyStore.js";
-import { selectPlan, clearPlanSelection } from "./planSelection.js";
+import { usePlanSelection } from "./planSelection.js";
 import { PlanStepEditor, validPlanSteps } from "./PlanStepEditor.js";
 const SaveContext = createContext<((draft: PlanDraft) => boolean) | null>(null);
 export function SaveStudyPlan({ draft }: { draft: PlanDraft }) {
@@ -70,6 +70,7 @@ export function StudyProgress({
   onChoose: (s: string) => void;
 }) {
   const storage = usePrivateStorage();
+  const selection = usePlanSelection();
   const planStorageKey = usePrivateKey(STUDY_PLANS_KEY);
   const c = useCopy();
   const [plans, setPlans] = useState<SavedPlan[]>([]),
@@ -77,6 +78,12 @@ export function StudyProgress({
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
   const [editing, setEditing] = useState<SavedPlan | null>(null);
+  useEffect(() => {
+    selection.current = active;
+    return () => {
+      selection.current = null;
+    };
+  }, [active, selection]);
   useEffect(() => {
     setEditing(null);
   }, [active?.id]);
@@ -178,10 +185,8 @@ export function StudyProgress({
         )
       )
         setActive(stamped);
-      selectPlan(stamped);
     } else {
       setActive(next);
-      selectPlan(next);
       setMessage("Completion changed in this tab only. Keeping updates is off.");
     }
   }
@@ -284,7 +289,7 @@ export function StudyProgress({
                 <button
                   onClick={() => {
                     setActive({ ...p, steps: p.steps.map((s) => ({ ...s })) });
-                    selectPlan({ ...p, steps: p.steps.map((s) => ({ ...s })) });
+
                     setMessage("Saved copy resumed. Original sources are not loaded.");
                   }}
                 >
@@ -366,7 +371,6 @@ export function StudyProgress({
                         )
                       ) {
                         setActive(next);
-                        selectPlan(next);
                         setEditing(null);
                       }
                     }}
@@ -419,7 +423,6 @@ export function StudyProgress({
             )}
             <button
               onClick={() => {
-                clearPlanSelection();
                 setActive(null);
               }}
             >

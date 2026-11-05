@@ -6,6 +6,8 @@ import { AiCapacity, CapacityError } from "./aiCapacity.js";
 import { PlanningProviderError } from "./qwenPlanning.js";
 import {
   accountPlans,
+  deleteAccountPlan,
+  AccountSaveError,
   validateAccountPlan,
   type AccountConfig,
   type PlanningIdentity,
@@ -34,7 +36,9 @@ export function createHybridHandler(options: {
       send(401, { error: "Sign in required." });
       return;
     }
-    if (req.method === "GET" && req.url === "/api/ai/hybrid/status") {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const path = url.pathname;
+    if (req.method === "GET" && path === "/api/ai/hybrid/status") {
       send(200, {
         configured: !!options.provider,
         preferred: "cloud-qwen",
@@ -43,51 +47,20 @@ export function createHybridHandler(options: {
       });
       return;
     }
-    const account = req.url === "/api/ai/hybrid/account-plans";
-    if (!account && req.url !== "/api/ai/hybrid/enhance" && req.url !== "/api/ai/hybrid/baseline") {
+    const account = path === "/api/ai/hybrid/account-plans";
+    if (!account && path !== "/api/ai/hybrid/enhance" && path !== "/api/ai/hybrid/baseline") {
       send(404, { error: "Not found." });
       return;
     }
-    if (req.method === "DELETE" && account) {
-      // DELETE /api/ai/hybrid/account-plans/{id} (owner-scoped, fail-closed).
-      try {
-        const url = new URL(req.url ?? "", `http://${req.headers.host ?? "localhost"}`);
-        const id = url.searchParams.get("id");
-        if (!id) throw Error("Missing plan id.");
-        const supabaseUrl = options.account?.supabaseUrl;
-        if (!supabaseUrl) throw Error("Account sync not configured.");
-        const response = await (options.account?.fetch ?? fetch)(
-          `${supabaseUrl}/rest/v1/studyroom_planning_plans?eq.id.~eq.${id}&select=id`,
-          {
-            method: "DELETE",
-            headers: {
-              apikey: options.account!.anonKey,
-              Authorization: `Bearer ${identity!.token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}));
-          if (response.status === 401 || response.status === 403 || response.status === 503) {
-            send(503, { error: "Account sync unavailable. Plan was not deleted." });
-            return;
-          }
-          send(response.status, body);
-          return;
-        }
-        send(200, { deleted: true });
-        return;
-      } catch (e) {
-        send(500, { error: "Could not delete account plan: " + (e as Error).message });
-        return;
-      }
-    }
-    if (req.method !== "POST" && !(account && req.method === "GET")) {
+    if (req.method !== "POST" && !(account && (req.method === "GET" || req.method === "DELETE"))) {
       send(405, { error: "Use the documented method." });
       return;
     }
-    if (account && (!identity || !options.account)) {
+    if (account && !identity) {
+      send(401, { error: "Sign in required." });
+      return;
+    }
+    if (account && !options.account) {
       send(503, {
         error:
           "Account sync requires reviewed database setup. Device-only planning remains available.",
@@ -95,7 +68,7 @@ export function createHybridHandler(options: {
       return;
     }
     if (
-      req.method === "POST" &&
+      (req.method === "POST" || req.method === "DELETE") &&
       (req.headers.origin !== (options.origin ?? `http://${req.headers.host}`) ||
         (req.headers["sec-fetch-site"] !== undefined &&
           req.headers["sec-fetch-site"] !== "same-origin"))
@@ -124,8 +97,33 @@ export function createHybridHandler(options: {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let release: (() => void) | undefined;
     try {
+      if (account && req.method === "DELETE") {
+        const ids = url.searchParams.getAll("id");
+        if (
+          ids.length !== 1 ||
+          !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(ids[0]) ||
+          [...url.searchParams.keys()].some((key) => key !== "id")
+        ) {
+          send(400, { error: "Supply exactly one valid saved plan UUID." });
+          return;
+        }
+        send(200, await deleteAccountPlan(options.account!, identity!, ids[0], controller.signal));
+        return;
+      }
       if (account && req.method === "GET") {
-        send(200, await accountPlans(options.account!, identity!, undefined, controller.signal));
+        const ids = url.searchParams.getAll("id");
+        if (
+          ids.length > 1 ||
+          (ids.length === 1 &&
+            !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(ids[0]))
+        ) {
+          send(400, { error: "Invalid saved plan UUID." });
+          return;
+        }
+        send(
+          200,
+          await accountPlans(options.account!, identity!, undefined, controller.signal, ids[0]),
+        );
         return;
       }
       timer = setTimeout(() => {
@@ -220,7 +218,13 @@ export function createHybridHandler(options: {
           });
       }
     } catch (error) {
-      if (error instanceof CapacityError)
+      if (error instanceof AccountSaveError)
+        send(503, {
+          error: error.message,
+          category: error.category,
+          attemptedId: error.attemptedId,
+        });
+      else if (error instanceof CapacityError)
         send(
           429,
           { error: `Planning capacity: ${error.reason}. Your plan is unchanged.` },

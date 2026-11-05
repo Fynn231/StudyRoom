@@ -2,7 +2,10 @@ import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 async function ready(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("timer")).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
 }

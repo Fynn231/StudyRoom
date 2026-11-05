@@ -217,6 +217,10 @@ test("account save succeeds only after exact owner-scoped readback; partial fail
       "no compensating delete or overwrite of existing data",
     );
   }
-  assert.equal(posts, 6);
-  assert.equal(reads, 6);
+  assert.equal(
+    posts,
+    1,
+    "uncertain retries reconcile exact owner/ID and never overwrite a committed copy",
+  );
+  assert.equal(reads, 7, "six exact-ID preflights and the first insert's confirmation");
 });

@@ -53,7 +53,7 @@ test('synthetic provider lifecycle submits signed-out actions, isolates account 
  rtl.fireEvent.submit(email.closest('form')!);await rtl.waitFor(()=>assert.equal(emails,1));
  rtl.fireEvent.click(q.getByRole('button',{name:'Continue with Google'}));await rtl.waitFor(()=>assert.equal(google,1));
  const makeSession=(id:string,refresh=0)=>({user:{id,email:'synthetic@example.invalid',user_metadata:{}},access_token:`e30.${Buffer.from(JSON.stringify({session_id:'session-'+id,refresh})).toString('base64url')}.synthetic`,expires_at:Math.floor(Date.now()/1000)+60});
- const change=async(id:string,refresh=0)=>{session=makeSession(id,refresh);await rtl.act(async()=>notify('SIGNED_IN',session));await rtl.waitFor(()=>{const skip=q.queryByRole('button',{name:'Skip welcome'});if(skip)rtl.fireEvent.click(skip);assert.ok(q.getByLabelText('Your session intention'));});};
+ const change=async(id:string,refresh=0)=>{session=makeSession(id,refresh);await rtl.act(async()=>notify('SIGNED_IN',session));await rtl.waitFor(()=>{const entry=q.queryByRole('button',{name:/^Continue (?:to Study Room|last session)$/});if(entry)rtl.fireEvent.click(entry);assert.ok(q.getByLabelText('Your session intention'));});};
  session={...makeSession('expired'),expires_at:Math.floor(Date.now()/1000)-1};
  await rtl.act(async()=>notify('SIGNED_IN',session));
  await rtl.waitFor(()=>assert.match(view.container.textContent??'',/Your session expired/));

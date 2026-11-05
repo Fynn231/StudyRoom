@@ -199,9 +199,28 @@ export function ScheduleReview({ model }: { model: HybridPlannerModel }) {
               <button onClick={() => setSuggested(null)}>Keep current schedule</button>
             </section>
           )}
-          <button disabled={busy || dirty || !title.trim()} onClick={() => void saveAccount()}>
-            Approve and save schedule to account
+          <button
+            disabled={
+              busy || dirty || !title.trim() || !!model.recovery.journal || !!model.recovery.error
+            }
+            onClick={() => void saveAccount()}
+          >
+            Save as new copy to account
           </button>
+          <p className="quiet-note">
+            Account saving creates a separate copy; existing cloud schedules are never overwritten.
+            In-place cloud updates are not enabled by the reviewed database grants. Delete unneeded
+            cloud copies to free library space.
+          </p>
+          {model.activePlanId && (
+            <p>Reviewing cloud copy: {model.activePlanId}. Edits will be saved as a new copy.</p>
+          )}
+          {model.pendingSave && (
+            <p role="status">
+              Unconfirmed save attempt: {model.pendingSave.id}. Use Check previous save or Retry
+              original save above. A retry sends the previous version, not these newer edits.
+            </p>
+          )}
           {!dirty && (
             <SaveStudyPlan
               draft={{

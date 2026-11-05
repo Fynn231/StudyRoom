@@ -3,7 +3,10 @@ test("upfront guide tabs support keyboard, open the right tool, and preserve pri
   page,
 }, info) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip welcome", exact: true }).click();
+  await page
+    .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page
     .getByLabel("Your session intention", { exact: true })
     .fill("Private navigation continuity fixture");

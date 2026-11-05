@@ -115,6 +115,7 @@ test("planner preserves reviewed edits through an unconfirmed committed account 
         const query = new URL(String(url)).searchParams;
         assert.equal(query.get("user_id"), "eq.synthetic-A");
         if (query.has("id")) {
+          if (!rows.has(query.get("id")!.slice(3))) return Response.json([]);
           if (!confirm) return Response.json({}, { status: 503 });
           return Response.json([rows.get(query.get("id")!.slice(3))]);
         }
@@ -159,7 +160,7 @@ test("planner preserves reviewed edits through an unconfirmed committed account 
   rtl.fireEvent.change(q.getByLabelText("Schedule title"), {
     target: { value: "Reviewed account plan" },
   });
-  const save = q.getByRole("button", { name: "Approve and save schedule to account" });
+  const save = q.getByRole("button", { name: "Save as new copy to account" });
   rtl.fireEvent.click(save);
   await rtl.waitFor(() => assert.ok(q.getByRole("alert")));
   assert.equal(q.queryByText(/saved to your signed-in account/), null);
@@ -182,7 +183,7 @@ test("planner preserves reviewed edits through an unconfirmed committed account 
   await rtl.waitFor(() => assert.match(q.getByRole("alert").textContent ?? "", /not configured/));
   assert.equal((q.getByLabelText("Block 1 title") as HTMLInputElement).value, "Reviewed wording");
   confirm = true;
-  rtl.fireEvent.click(save);
+  rtl.fireEvent.click(q.getByRole("button", { name: "Check previous save" }));
   await rtl.waitFor(() => assert.ok(q.getByText(/saved to your signed-in account/)));
   assert.equal(q.queryByRole("alert"), null);
 });
