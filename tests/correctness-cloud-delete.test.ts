@@ -5,6 +5,59 @@ import { createHybridHandler } from "../server/hybridPlanning.js";
 import { AiCapacity } from "../server/aiCapacity.js";
 
 const id = "11111111-1111-4111-8111-111111111111";
+for (const requestedId of [
+  "ABCDEFAB-1234-4ABC-8DEF-ABCDEFABCDEF",
+  "aBcDeFaB-1234-4aBc-8dEf-aBcDeFaBcDeF",
+])
+  test(`saved-cloud-plan DELETE accepts lowercase UUID acknowledgement for exact case-preserved request ${requestedId}`, async (t) => {
+    let returnedId: unknown = requestedId.toLowerCase();
+    const calls: string[] = [];
+    const handler = createHybridHandler({
+      hosted: true,
+      origin: "https://study.example",
+      capacity: new AiCapacity(),
+      account: {
+        supabaseUrl: "https://fake.invalid",
+        anonKey: "synthetic",
+        fetch: async (url, init) => {
+          const query = new URL(String(url));
+          calls.push(init!.method!);
+          assert.equal(query.searchParams.get("user_id"), "eq.owner-A");
+          assert.equal(query.searchParams.get("id"), `eq.${requestedId}`);
+          assert.equal(query.searchParams.get("select"), "id");
+          assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer synthetic");
+          assert.equal(new Headers(init?.headers).get("apikey"), "synthetic");
+          assert.equal(init?.redirect, "error");
+          assert.equal(init?.cache, "no-store");
+          assert.ok(init?.signal);
+          return Response.json(init?.method === "DELETE" ? [{ id: returnedId }] : []);
+        },
+      },
+    });
+    const server = createServer((req, res) => {
+      void handler(req, res, { user: { id: "owner-A" }, token: "synthetic" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    t.after(async () => {
+      handler.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    });
+    const url = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/ai/hybrid/account-plans?id=${requestedId}`;
+    const request = () =>
+      fetch(url, { method: "DELETE", headers: { Origin: "https://study.example" } });
+    const response = await request();
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { deleted: true, id: requestedId });
+    assert.deepEqual(calls, ["DELETE", "GET"], "success still requires empty verification read");
+    for (returnedId of [null, 42, {}, "bad", `${requestedId}\n`, id]) {
+      calls.length = 0;
+      const rejected = await request();
+      assert.notEqual(rejected.status, 200);
+      assert.notEqual((await rejected.json()).deleted, true);
+      assert.deepEqual(calls, ["DELETE"], "invalid or different UUID cannot reach confirmation");
+    }
+  });
 test("saved-cloud-plan DELETE validates route, guards, exact owner and confirmed removal", async (t) => {
   let authenticated = true,
     confirm = true,

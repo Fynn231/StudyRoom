@@ -55,7 +55,14 @@ export async function deleteAccountPlan(
     return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
   };
   const rows = await read("DELETE");
-  if (!Array.isArray(rows) || rows.length !== 1 || rows[0]?.id !== id)
+  if (
+    !Array.isArray(rows) ||
+    rows.length !== 1 ||
+    typeof rows[0]?.id !== "string" ||
+    rows[0].id.length !== 36 ||
+    !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(rows[0].id) ||
+    rows[0].id.toLowerCase() !== id.toLowerCase()
+  )
     throw Error(
       "Deletion not confirmed for this owner and plan. Reload saved schedules before retrying.",
     );
