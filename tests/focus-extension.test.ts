@@ -4,167 +4,28 @@ import { blockRules, normalizeDomains } from "../extension/rules.js";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { JSDOM } from "jsdom";
-
-// Exercise the real worker with an in-memory Chrome API boundary, not browser enforcement.
-async function worker(
-  active?: { domains: string[]; endsAt: number },
-  initialRules = active ? blockRules(active.domains) : [],
-) {
-  const data: Record<string, any> = active ? { active: structuredClone(active) } : {};
-  let rules = structuredClone(initialRules);
-  const alarms = new Map<string, { scheduledTime: number }>();
-  const failures = new Set<string>();
-  const listeners: Record<string, Function> = {};
-  const check = (name: string) => {
-    if (failures.has(name)) throw Error(name);
-  };
-  const chrome = {
-    runtime: {
-      id: "test-extension",
-      onMessage: {
-        addListener: (fn: Function) => {
-          listeners.message = fn;
-        },
-      },
-      onStartup: {
-        addListener: (fn: Function) => {
-          listeners.startup = fn;
-        },
-      },
-      onInstalled: {
-        addListener: (fn: Function) => {
-          listeners.installed = fn;
-        },
-      },
-    },
-    storage: {
-      local: {
-        get: async (keys: string | string[]) => {
-          check("read");
-          return Object.fromEntries(
-            (Array.isArray(keys) ? keys : [keys])
-              .filter((key) => key in data)
-              .map((key) => [key, structuredClone(data[key])]),
-          );
-        },
-        set: async (value: any) => {
-          check("write");
-          Object.assign(data, structuredClone(value));
-        },
-        remove: async (key: string) => {
-          check("remove");
-          delete data[key];
-        },
-      },
-    },
-    alarms: {
-      get: async (name: string) => {
-        check("alarmGet");
-        return alarms.get(name);
-      },
-      create: async (name: string, value: { when: number }) => {
-        check("alarmCreate");
-        alarms.set(name, { scheduledTime: value.when });
-      },
-      clear: async (name: string) => {
-        check("alarmClear");
-        alarms.delete(name);
-        return true;
-      },
-      onAlarm: {
-        addListener: (fn: Function) => {
-          listeners.alarm = fn;
-        },
-      },
-    },
-    declarativeNetRequest: {
-      getSessionRules: async () => {
-        check("rulesRead");
-        return structuredClone(rules);
-      },
-      updateSessionRules: async ({ removeRuleIds = [], addRules = [] }: any) => {
-        check("rulesUpdate");
-        rules = [
-          ...rules.filter((rule) => !removeRuleIds.includes(rule.id)),
-          ...structuredClone(addRules),
-        ];
-      },
-    },
-  };
-  Object.assign(globalThis, { chrome });
-  const source = (
-    await readFile(new URL("../extension/background.js", import.meta.url), "utf8")
-  ).replace(/^import .*;\n/, "");
-  let now = Date.now();
-  let context = vm.createContext({
-    chrome,
-    normalizeDomains,
-    blockRules,
-    Date: class extends Date {
-      static now() {
-        return now;
-      }
-    },
-  });
-  vm.runInContext(source, context);
-  await vm.runInContext("queue", context);
-  const send = (message: any): Promise<any> =>
-    new Promise((resolve) =>
-      listeners.message(message, { id: chrome.runtime.id }, (value: any) =>
-        resolve(structuredClone(value)),
-      ),
-    );
-  return {
-    send,
-    data,
-    failures,
-    listeners,
-    rules: () => rules,
-    alarm: () => alarms.get("focus-end"),
-    alarms,
-    reboot: async () => {
-      context = vm.createContext({
-        chrome,
-        normalizeDomains,
-        blockRules,
-        Date: class extends Date {
-          static now() {
-            return now;
-          }
-        },
-      });
-      vm.runInContext(source, context);
-      await vm.runInContext("queue", context);
-    },
-    fire: async (name: string, scheduledTime?: number) => {
-      const when = scheduledTime ?? alarms.get(name)?.scheduledTime ?? now;
-      now = Math.max(now, when);
-      alarms.delete(name);
-      listeners.alarm({ name, scheduledTime: when });
-      await vm.runInContext("queue", context);
-    },
-  };
-}
+import { focusWorker, start, slot } from "./helpers/focus-worker.js";
 
 const lease = () => ({ domains: ["example.com"], endsAt: Date.now() + 60000 });
 
-test("worker wake repairs a lost expiry alarm without extending the live lease", async () => {
-  const active = lease();
-  const w = await worker(active);
+test("worker wake fails open on a lost expiry alarm without extending or restoring the lease", async () => {
+  const w = await focusWorker();
+  await start(w);
+  w.alarms.delete(slot(w, 0)!);
+  w.boot();
   const status = await w.send({ type: "status" });
   assert.equal(status.ok, true);
-  assert.deepEqual(status.active, active);
-  assert.equal(
-    w.alarm()?.scheduledTime,
-    active.endsAt,
-    "live rules must have an expiry alarm after worker wake",
-  );
-  assert.deepEqual(w.rules(), blockRules(active.domains));
+  assert.equal(status.active, null);
+  assert.match(status.warning, /disable or remove/);
+  assert.deepEqual(w.rules(), []);
+  assert.equal(w.alarms.size, 0);
 });
 
 test("status clears a live lease with missing or altered session rules instead of claiming blocking", async () => {
-  for (const rules of [[], blockRules(["other.example"])]) {
-    const w = await worker(lease(), rules);
+  for (const rules of [[], blockRules(["other.example"], 51)]) {
+    const w = await focusWorker();
+    await start(w);
+    w.setRules(rules);
     const status = await w.send({ type: "status" });
     assert.equal(status.ok, true);
     assert.equal(status.active, null, "a durable lease alone is not browser enforcement");
@@ -173,17 +34,78 @@ test("status clears a live lease with missing or altered session rules instead o
   }
 });
 
-test("failed alarm recovery removes live rules instead of leaving unbounded blocking", async () => {
-  const w = await worker(lease());
-  await w.send({ type: "status" });
-  // Simulate an alarm lost while the worker is still running.
-  await (globalThis as any).chrome.alarms.clear("focus-end");
+test("missing-alarm reconciliation does not require alarm creation to fail open", async () => {
+  const w = await focusWorker();
+  await start(w);
+  w.alarms.delete(slot(w, 0)!);
   w.failures.add("alarmCreate");
   const status = await w.send({ type: "status" });
-  assert.equal(status.ok, false);
-  assert.deepEqual(w.rules(), [], "without a working expiry mechanism, fail open");
+  assert.equal(status.ok, true);
+  assert.match(status.warning, /disable or remove/);
+  assert.deepEqual(w.rules(), []);
   assert.equal(w.data.active, undefined);
 });
+
+for (const cause of ["stale envelope during a read outage", "invalid Start"] as const) {
+  test(`popup polling preserves a persisted warning during healthy blocking after ${cause}`, async (t) => {
+    const w = await focusWorker();
+    await start(w);
+    const oldEnvelope = structuredClone(w.alarms.get(slot(w, 1)!));
+    await w.send({ type: "stop" });
+    await start(w, 180);
+    if (cause === "invalid Start") {
+      assert.equal((await w.send({ type: "start", domains: "example.com", minutes: 0 })).ok, false);
+    } else {
+      w.advance(oldEnvelope.scheduledTime);
+      w.failures.add("read");
+      await w.dispatch(oldEnvelope, true);
+      w.failures.delete("read");
+    }
+    assert.equal(w.data.focusWarning, true);
+    assert.equal(w.rules().length, 1);
+    const dom = new JSDOM(
+      await readFile(new URL("../extension/popup.html", import.meta.url), "utf8"),
+    );
+    t.after(() => dom.window.close());
+    let poll!: () => Promise<void>;
+    const source = await readFile(new URL("../extension/popup.js", import.meta.url), "utf8");
+    await vm.runInNewContext(`(async () => { ${source.replace(/^import .*;\n/, "")} })()`, {
+      document: dom.window.document,
+      normalizeDomains,
+      setInterval: (callback: () => Promise<void>) => {
+        poll = callback;
+        return 0;
+      },
+      chrome: {
+        storage: w.chrome.storage,
+        runtime: { sendMessage: (message: any) => w.send(message) },
+      },
+    });
+    const text = () => dom.window.document.getElementById("status")!.textContent!;
+    assert.match(text(), /disable or remove/, "healthy status must carry the sticky warning");
+    for (let i = 0; i < 3; i++) {
+      await poll();
+      assert.match(text(), /disable or remove/);
+    }
+    w.boot();
+    await poll();
+    assert.match(text(), /disable or remove/, "cold worker must preserve the durable warning");
+    dom.window.document.getElementById("stop")!.click();
+    await w.drain();
+    await new Promise((resolve) => setImmediate(resolve));
+    await poll();
+    assert.equal(text(), "Blocking is off.");
+    assert.notEqual(w.data.focusWarning, true);
+    await start(w, 3);
+    await w.send({ type: "start", domains: "example.com", minutes: 0 });
+    await poll();
+    assert.match(text(), /disable or remove/);
+    await start(w, 3);
+    await poll();
+    assert.match(text(), /^Blocking 1 selected sites/);
+    assert.notEqual(w.data.focusWarning, true, "successful explicit Start also clears the warning");
+  });
+}
 
 test("late popup status cannot overwrite a newer successful Stop", async (t) => {
   const dom = new JSDOM(
@@ -257,168 +179,152 @@ test("popup offers an explicit status retry after a messaging failure", async (t
 });
 
 test("expiry, malformed leases and startup/install events leave no rules or stored active claim", async () => {
-  for (const active of [
-    { ...lease(), endsAt: Date.now() - 1 },
-    { ...lease(), domains: ["bad.local"] },
-    { ...lease(), endsAt: Date.now() + 181 * 60000 },
+  for (const change of [
+    { endsAt: 1_799_999_999_999 },
+    { domains: ["bad.local"] },
+    { endsAt: 1_800_000_000_000 + 181 * 60000 },
   ]) {
-    const w = await worker(active);
+    const w = await focusWorker();
+    await start(w);
+    Object.assign(w.data.active, change);
     assert.equal((await w.send({ type: "status" })).active, null);
     assert.deepEqual(w.rules(), []);
     assert.equal(w.data.active, undefined);
   }
-  for (const event of ["startup", "installed", "alarm"]) {
-    const w = await worker(lease());
-    await w.send({ type: "status" });
-    w.listeners[event]({ name: "focus-end" });
+  for (const event of ["onStartup", "onInstalled", "onAlarm"]) {
+    const w = await focusWorker();
+    await start(w);
+    if (event === "onAlarm") await w.consume(slot(w, 0)!);
+    else w.listeners[event]();
     assert.equal((await w.send({ type: "status" })).active, null);
     assert.deepEqual(w.rules(), []);
   }
 });
 
 test("failed rule removal never confirms Stop, preserves expiry and permits retry", async () => {
-  const active = lease();
-  const w = await worker(active);
-  await w.send({ type: "status" });
+  const w = await focusWorker();
+  const active = await start(w);
+  const expiry = slot(w, 0)!;
   w.failures.add("rulesUpdate");
   assert.equal((await w.send({ type: "stop" })).ok, false);
-  assert.deepEqual(w.rules(), blockRules(active.domains));
-  assert.equal(w.alarm()?.scheduledTime, active.endsAt);
+  assert.deepEqual(w.rules(), blockRules(active.domains, active.ruleBase));
+  assert.equal(w.alarms.get(expiry)?.scheduledTime, active.endsAt);
   const status = await w.send({ type: "status" });
   assert.equal(status.ok, false, "live lease plus matching rules cannot hide failed Stop cleanup");
   assert.match(status.error, /disable or remove/);
   w.failures.delete("rulesUpdate");
   assert.deepEqual(await w.send({ type: "stop" }), { ok: true, active: null });
   assert.deepEqual(w.rules(), []);
-  assert.equal(w.alarm(), undefined);
+  assert.equal(w.alarms.size, 0);
 });
 
-test("start storage failure rolls back installed rules and a later start still works", async () => {
-  const w = await worker();
-  await w.send({ type: "status" });
+test("start storage failure installs no rules and a later explicit start still works", async () => {
+  const w = await focusWorker();
   w.failures.add("write");
   assert.equal((await w.send({ type: "start", domains: "example.com", minutes: 1 })).ok, false);
   assert.deepEqual(w.rules(), []);
-  assert.equal(w.alarm(), undefined);
+  assert.equal(w.alarms.size, 0);
   assert.equal(w.data.active, undefined);
   w.failures.delete("write");
-  const result = await w.send({ type: "start", domains: "example.com", minutes: 1 });
-  assert.equal(result.ok, true);
-  assert.deepEqual((await w.send({ type: "status" })).active, result.active);
-  assert.equal(w.alarm()?.scheduledTime, result.active.endsAt);
+  const active = await start(w);
+  assert.deepEqual((await w.send({ type: "status" })).active, active);
+  assert.equal(w.alarms.get(slot(w, 0)!)?.scheduledTime, active.endsAt);
 });
 
 test("storage read failure fails open and does not poison the next command", async () => {
-  const w = await worker(lease());
-  await w.send({ type: "status" });
+  const w = await focusWorker();
+  await start(w);
   w.failures.add("read");
   assert.equal((await w.send({ type: "status" })).ok, false);
   assert.deepEqual(w.rules(), []);
   w.failures.delete("read");
-  assert.deepEqual(await w.send({ type: "status" }), { ok: true, active: null });
+  const status = await w.send({ type: "status" });
+  assert.equal(status.ok, true);
+  assert.equal(status.active, null);
 });
 
-test("failed retry alarm creation is repaired by manual Stop without resetting bounded intent", async () => {
-  const active = lease();
-  const w = await worker(active);
+test("failed early retry preparation burns its durable intent; repeated Stop never repairs missing slots", async () => {
+  const w = await focusWorker();
+  await start(w, 180);
   w.failures.add("rulesUpdate");
   w.failures.add("alarmCreate");
   assert.equal((await w.send({ type: "stop" })).ok, false);
-  const original = structuredClone(w.data.cleanup);
-  assert.equal(original.attempt, 1);
-  assert.equal(w.alarms.has("focus-cleanup-1"), false);
+  const original = structuredClone(w.data.active.earlyStop);
+  assert.ok(original);
+  assert.equal(w.alarms.size, 6);
   w.failures.delete("alarmCreate");
   assert.equal((await w.send({ type: "stop" })).ok, false);
-  assert.deepEqual(w.data.cleanup, original);
-  assert.equal(w.alarm()?.scheduledTime, active.endsAt);
-  assert.equal(
-    w.alarms.get("focus-cleanup-1")?.scheduledTime,
-    original.retryAt,
-    "manual Stop must repair the missing wake-up at its original retry time",
-  );
+  assert.deepEqual(w.data.active.earlyStop, original);
+  assert.equal(w.alarms.size, 6, "no repair/replenishment; expiry remains independent backstop");
 });
 
-test("stale and duplicate cleanup alarms cannot rewind attempts or stop a replacement lease", async () => {
-  const w = await worker(lease());
-  w.failures.add("rulesUpdate");
+test("stale and duplicate cleanup alarms cannot stop a same-domain same-deadline replacement lease", async () => {
+  const w = await focusWorker();
+  await start(w);
+  const old = structuredClone(w.alarms.get(slot(w, 1)!));
   await w.send({ type: "stop" });
-  const first = structuredClone(w.data.cleanup);
-  await w.fire("focus-cleanup-1", first.retryAt);
-  const second = structuredClone(w.data.cleanup);
-  assert.equal(second.attempt, 2);
-  await w.fire("focus-cleanup-1", first.retryAt);
-  assert.deepEqual(
-    w.data.cleanup,
-    second,
-    "duplicate delivery must not reset attempt or retry deadline",
-  );
-  w.failures.delete("rulesUpdate");
-  assert.equal((await w.send({ type: "stop" })).ok, true);
-  const started = await w.send({ type: "start", domains: "example.com", minutes: 3 });
-  assert.equal(started.ok, true);
-  await w.fire("focus-cleanup-2", second.retryAt);
-  const status = await w.send({ type: "status" });
-  assert.deepEqual(status.active, started.active, "old cleanup cannot remove a newer lease");
+  const active = await start(w);
+  assert.equal(active.endsAt + 30000, old.scheduledTime);
+  w.failures.add("read");
+  w.advance(old.scheduledTime);
+  await w.dispatch(old, true);
+  await w.dispatch(old, true);
+  assert.deepEqual(w.rules(), blockRules(active.domains, active.ruleBase));
+  assert.equal(w.data.active.generation, active.generation);
 });
 
-test("failed cleanup storage write cannot reset attempts on repeated Stop or lose alarm-driven progress", async () => {
-  const active = lease();
-  const w = await worker(active);
+test("failed cleanup writes preserve finite alarm-driven progress without resetting the original end", async () => {
+  const w = await focusWorker();
+  const active = await start(w);
+  const slots = [...w.alarms.keys()];
   w.failures.add("rulesUpdate");
   w.failures.add("write");
-  assert.equal((await w.send({ type: "stop" })).ok, false);
-  const first = w.alarms.get("focus-cleanup-1")!.scheduledTime;
-  assert.equal(w.data.cleanup, undefined);
-  await w.fire("focus-cleanup-1", first);
-  assert.ok(
-    w.alarms.has("focus-cleanup-2"),
-    "alarm-persisted/state-failed cleanup must advance rather than silently disappear",
-  );
-  const second = w.alarms.get("focus-cleanup-2")!.scheduledTime;
-  w.failures.delete("write");
-  assert.equal((await w.send({ type: "stop" })).ok, false);
-  const cleanup = Reflect.get(w.data, "cleanup");
-  assert.ok(cleanup);
-  assert.equal(
-    cleanup.attempt,
-    2,
-    "manual retry must repair persistence without resetting attempt",
-  );
-  assert.equal(cleanup.retryAt, second);
+  await w.consume(slots[0]);
+  await w.consume(slots[1]);
+  assert.equal(w.data.active.phase, "running", "writes really failed");
   assert.equal(w.data.active.endsAt, active.endsAt);
-});
-
-test("worker restart prefers surviving later alarm over an older persisted cleanup attempt", async () => {
-  const w = await worker(lease());
-  w.failures.add("rulesUpdate");
+  const creates = w.operations.filter((o) => o.op === "alarmCreate").length;
   await w.send({ type: "stop" });
-  w.failures.add("write");
-  await w.fire("focus-cleanup-1");
-  assert.equal(w.data.cleanup.attempt, 1);
-  const second = w.alarms.get("focus-cleanup-2")!.scheduledTime;
-  await w.reboot();
-  w.failures.delete("write");
-  assert.equal((await w.send({ type: "stop" })).ok, false);
-  assert.equal(w.data.cleanup.attempt, 2, "restart must not reset to stale persisted attempt");
-  assert.equal(w.data.cleanup.retryAt, second);
+  assert.equal(w.operations.filter((o) => o.op === "alarmCreate").length, creates);
+  w.failures.delete("rulesUpdate");
+  await w.consume(slots[2], true);
+  assert.deepEqual(w.rules(), []);
 });
 
-test("exhausted and malformed cleanup remain errors without automatic budget reset", async () => {
+test("worker restart accepts a higher delivered slot despite older persisted observations", async () => {
+  const w = await focusWorker();
+  await start(w);
+  const slots = [...w.alarms.keys()];
+  w.failures.add("rulesUpdate");
+  await w.consume(slots[0]);
+  const old = structuredClone(w.data.active);
+  w.failures.add("write");
+  await w.consume(slots[1]);
+  assert.deepEqual(w.data.active, old);
+  w.failures.delete("rulesUpdate");
+  await w.consume(slots[2], true);
+  assert.deepEqual(w.rules(), []);
+  assert.equal(w.alarms.has(slots[0]), false);
+});
+
+test("exhausted and malformed legacy cleanup remain release-only without budget reset", async () => {
   for (const cleanup of [
     { attempt: 6, retryAt: 123, exhausted: true },
     { attempt: "bad", retryAt: null },
   ]) {
-    const w = await worker(lease());
+    const w = await focusWorker();
+    w.data.active = lease();
     w.data.cleanup = structuredClone(cleanup);
+    w.setRules(blockRules(["example.com"]));
     w.failures.add("rulesUpdate");
-    await w.reboot();
+    w.boot();
     for (const type of ["stop", "status", "stop"]) {
       const result = await w.send({ type });
       assert.equal(result.ok, false);
       assert.match(result.error, /disable or remove/);
     }
     assert.deepEqual(w.data.cleanup, cleanup);
-    assert.equal([...w.alarms.keys()].filter((name) => name.startsWith("focus-cleanup")).length, 0);
+    assert.equal(w.alarms.size, 0);
     w.failures.delete("rulesUpdate");
     assert.equal((await w.send({ type: "stop" })).ok, true);
     assert.equal(w.data.cleanup, undefined);
@@ -427,14 +333,14 @@ test("exhausted and malformed cleanup remain errors without automatic budget res
 
 test("storage removal and alarm clearing failures never confirm Stop and permit explicit recovery", async () => {
   for (const failure of ["remove", "alarmClear"]) {
-    const w = await worker(lease());
+    const w = await focusWorker();
+    await start(w);
     w.failures.add(failure);
     const result = await w.send({ type: "stop" });
     assert.equal(result.ok, false);
     assert.match(result.error, /disable or remove/);
-    const cleanup = structuredClone(w.data.cleanup);
     assert.equal((await w.send({ type: "stop" })).ok, false);
-    assert.deepEqual(w.data.cleanup, cleanup);
+    assert.deepEqual(w.rules(), [], "off is distinct from housekeeping confirmed");
     w.failures.delete(failure);
     assert.equal((await w.send({ type: "stop" })).ok, true);
     assert.equal(w.data.active, undefined);
@@ -443,22 +349,21 @@ test("storage removal and alarm clearing failures never confirm Stop and permit 
   }
 });
 
-test("stale expiry and out-of-order cleanup delivery preserve the newer deadline and high-water mark", async () => {
-  const w = await worker(lease());
-  const oldDeadline = w.data.active.endsAt;
-  const started = await w.send({ type: "start", domains: "example.com", minutes: 3 });
-  await w.fire("focus-end", oldDeadline);
-  assert.deepEqual((await w.send({ type: "status" })).active, started.active);
+test("stale legacy expiry cannot touch a v2 deadline and out-of-order slots never rearm", async () => {
+  const w = await focusWorker();
+  const active = await start(w, 3);
+  await w.dispatch({ name: "focus-end", scheduledTime: w.now() });
+  assert.deepEqual((await w.send({ type: "status" })).active, active);
+  const events = [...w.alarms.values()].map((x) => structuredClone(x));
   w.failures.add("rulesUpdate");
-  await w.send({ type: "stop" });
-  const first = structuredClone(w.data.cleanup);
-  await w.fire("focus-cleanup-1");
-  await w.fire("focus-cleanup-2");
-  const third = structuredClone(w.data.cleanup);
-  await w.fire("focus-cleanup-1", first.retryAt);
-  assert.deepEqual(w.data.cleanup, third);
+  for (const i of [0, 2, 1, 2]) {
+    w.advance(Math.max(w.now(), events[i].scheduledTime));
+    await w.dispatch(events[i]);
+  }
+  assert.equal(w.data.active.observedSlot, 2);
+  assert.equal(w.operations.filter((o) => o.op === "alarmCreate").length, 6);
   w.failures.add("read");
-  await w.fire("focus-cleanup-3");
-  w.failures.delete("read");
-  assert.equal(w.data.cleanup.attempt, 4);
+  w.failures.delete("rulesUpdate");
+  await w.consume(events[3].name, true);
+  assert.deepEqual(w.rules(), []);
 });

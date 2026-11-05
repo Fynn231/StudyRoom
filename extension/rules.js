@@ -25,9 +25,13 @@ export function normalizeDomains(text) {
       );
   return domains;
 }
-export function blockRules(domains) {
+export function blockRules(domains, base = 1) {
+  // A bounded positive signed-integer range is accepted by target Chromium.
+  // Default IDs remain the reserved legacy range for existing callers.
+  if (!Number.isSafeInteger(base) || base < 1 || base + domains.length - 1 > 50000050)
+    throw Error("Invalid rule range");
   return domains.map((host, index) => ({
-    id: index + 1,
+    id: base + index,
     priority: 1,
     action: { type: "block" },
     condition: { urlFilter: `||${host}^`, resourceTypes: ["main_frame"] },

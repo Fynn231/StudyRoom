@@ -1,5 +1,8 @@
 export function normalizeDomains(text: string): string[];
-export function blockRules(domains: string[]): Array<{
+export function blockRules(
+  domains: string[],
+  base?: number,
+): Array<{
   id: number;
   priority: number;
   action: { type: "block" };

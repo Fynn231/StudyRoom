@@ -144,6 +144,29 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
     await target.goto(fixtureUrl);
     await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
     const hitsBeforeBlocking = fixtureHits;
+    // Exercise the conservative numeric ceiling using native DNR, not a mock.
+    const capAcceptance = await worker.evaluate(async () => {
+      const api = (globalThis as any).chrome;
+      const id = 50000050;
+      await api.declarativeNetRequest.updateSessionRules({
+        addRules: [
+          {
+            id,
+            priority: 1,
+            action: { type: "block" },
+            condition: { urlFilter: "||focus-blocker.test^", resourceTypes: ["main_frame"] },
+          },
+        ],
+      });
+      const accepted = (await api.declarativeNetRequest.getSessionRules()).some(
+        (r: any) => r.id === id,
+      );
+      await api.declarativeNetRequest.updateSessionRules({ removeRuleIds: [id] });
+      if ((await api.declarativeNetRequest.getSessionRules()).length)
+        throw Error("Numeric probe cleanup failed");
+      return accepted;
+    });
+    expect(capAcceptance).toBe(true);
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);
     await popup.getByLabel("Website domains").fill("focus-blocker.test");
@@ -164,24 +187,64 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
     expect(blocked).toBe(true);
     expect(fixtureHits).toBe(hitsBeforeBlocking);
     await popup.screenshot({ path: info.outputPath("blocker-active.png") });
-    // The native alarm can disappear while real session rules remain. Reconcile
-    // the actual Chrome return shape and preserve the original deadline.
-    const originalDeadline = await worker.evaluate(async () => {
+    const firstState = await worker.evaluate(async () => {
       const api = (globalThis as any).chrome;
-      const { active } = await api.storage.local.get("active");
-      await api.alarms.clear("focus-end");
-      return active.endsAt;
+      return {
+        active: (await api.storage.local.get("active")).active,
+        rules: await api.declarativeNetRequest.getSessionRules(),
+        alarms: await api.alarms.getAll(),
+      };
+    });
+    expect(firstState.rules.map((r: any) => r.id)).toEqual([51]);
+    expect(firstState.alarms).toHaveLength(6);
+    expect(firstState.active.generation).toBe(1);
+    await popup.getByRole("button", { name: "Stop blocking now", exact: true }).click();
+    await expect(popup.locator("#status")).toHaveText("Blocking is off.");
+    expect(
+      await worker.evaluate(() =>
+        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
+      ),
+    ).toEqual([]);
+    expect(await worker.evaluate(() => (globalThis as any).chrome.alarms.getAll())).toEqual([]);
+    await target.goto(fixtureUrl);
+    await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    expect(fixtureHits).toBeGreaterThan(hitsBeforeBlocking);
+
+    // Native alarm loss is now fail-open plus visible warning, never repair.
+    await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
+    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
+    const lostAlarm = await worker.evaluate(async () => {
+      const api = (globalThis as any).chrome;
+      const alarms = await api.alarms.getAll();
+      const alarm = alarms.find((a: any) => a.name.endsWith(":0"));
+      if (!alarm) throw Error("No native expiry slot");
+      await api.alarms.clear(alarm.name);
+      return alarm.name;
     });
     await popup.getByRole("button", { name: "Check status", exact: true }).click();
-    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
-    await expect
-      .poll(() =>
-        worker.evaluate(
-          async () => (await (globalThis as any).chrome.alarms.get("focus-end"))?.scheduledTime,
-        ),
-      )
-      .toBe(originalDeadline);
+    await expect(popup.locator("#status")).toContainText("Blocking safety could not be confirmed");
+    await expect(popup.locator("#status")).toContainText("disable or remove");
+    expect(
+      await worker.evaluate(() =>
+        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
+      ),
+    ).toEqual([]);
+    expect(await worker.evaluate(() => (globalThis as any).chrome.alarms.getAll())).toEqual([]);
+    await target.goto(fixtureUrl);
+    await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    await popup.screenshot({ path: info.outputPath("blocker-missing-alarm-warning.png") });
     await popup.getByRole("button", { name: "Stop blocking now", exact: true }).click();
+    await expect(popup.locator("#status")).toHaveText("Blocking is off.");
+
+    // Preserve expired persisted-lease recovery coverage (not native expiry).
+    await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
+    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
+    await worker.evaluate(async () => {
+      const api = (globalThis as any).chrome;
+      const { active } = await api.storage.local.get("active");
+      await api.storage.local.set({ active: { ...active, endsAt: Date.now() - 1 } });
+    });
+    await popup.getByRole("button", { name: "Check status", exact: true }).click();
     await expect(popup.locator("#status")).toHaveText("Blocking is off.");
     expect(
       await worker.evaluate(() =>
@@ -190,24 +253,28 @@ test("actual optional extension blocks a chosen synthetic site and Stop restores
     ).toEqual([]);
     await target.goto(fixtureUrl);
     await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
-    expect(fixtureHits).toBeGreaterThan(hitsBeforeBlocking);
-    // Exercise actual worker recovery, not just rule construction.
-    await popup.getByRole("button", { name: "Start blocking", exact: true }).click();
-    await expect(popup.locator("#status")).toContainText("Blocking 1 selected sites");
-    await worker.evaluate(async () => {
-      const api = (globalThis as any).chrome;
-      await api.storage.local.set({
-        active: { domains: ["focus-blocker.test"], endsAt: Date.now() - 1 },
-      });
-    });
-    await expect(popup.locator("#status")).toHaveText("Blocking is off.", { timeout: 12000 });
-    expect(
-      await worker.evaluate(() =>
-        (globalThis as any).chrome.declarativeNetRequest.getSessionRules(),
-      ),
-    ).toEqual([]);
-    await target.goto(fixtureUrl);
-    await expect(target.locator("body")).toHaveText("Synthetic focus blocker fixture");
+    console.log(
+      "NATIVE_STAGE_A",
+      JSON.stringify({
+        browser: context.browser()?.version(),
+        capId: 50000050,
+        capAcceptance,
+        firstGeneration: firstState.active.generation,
+        firstRuleIds: firstState.rules.map((r: any) => r.id),
+        verifiedExpirySlots: firstState.alarms.length,
+        lostAlarm,
+        fixtureHits,
+        observed: [
+          "navigation-before",
+          "ERR_BLOCKED_BY_CLIENT-during",
+          "Stop-native-absence",
+          "navigation-after-Stop",
+          "missing-alarm-visible-warning",
+          "navigation-after-fail-open",
+          "expired-persisted-lease-release",
+        ],
+      }),
+    );
   } finally {
     await context.close();
     fixture.closeAllConnections();

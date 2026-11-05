@@ -58,7 +58,10 @@ async function refreshStatus() {
   try {
     const result = await chrome.runtime.sendMessage({ type: "status" });
     if (!result?.ok) throw Error("Status unavailable");
-    if (request === revision) describe(result.active);
+    if (request === revision) {
+      if (result.warning) status.textContent = result.warning;
+      else describe(result.active);
+    }
   } catch {
     if (request === revision)
       status.textContent =

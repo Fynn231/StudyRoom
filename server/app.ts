@@ -161,6 +161,7 @@ export function createStudyServer(
         "/icon-maskable-512.png",
         "/apple-touch-icon.png",
         "/downloads/studyroom-focus-extension.zip",
+        "/audio/whimsical-study-loop.mp3",
       ].includes(path) ||
         /^\/assets\/[A-Za-z0-9_-]+\.(?:js|css|png|svg|woff2?)$/.test(path));
     // These responses contain only public data. Module requests carry the
