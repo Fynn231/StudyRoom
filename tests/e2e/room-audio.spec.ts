@@ -98,7 +98,7 @@ test("default-policy audio entry, native music readiness, welcome mute and navig
     .getByRole("button", { name: "study room", exact: true })
     .click({ clickCount: 5, delay: 30 });
   await expect.poll(() => gain(page)).toBeLessThan(normal * 0.4);
-  await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+  await page.getByRole("button", { name: "Return to normal mode", exact: true }).click();
   await expect.poll(() => gain(page)).toBeGreaterThan(normal * 0.95);
   await page.getByLabel("Optional rain", { exact: true }).check();
   await expect.poll(() => page.evaluate(() => (window as any).__roomAudio.sources.length)).toBe(4);

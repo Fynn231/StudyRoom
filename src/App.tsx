@@ -710,6 +710,16 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
               <button className="home-link" onClick={showHome}>
                 Home
               </button>
+              {lockIn && (
+                <button
+                  className="home-link normal-return"
+                  aria-label="Return to normal mode"
+                  title="Return to normal mode"
+                  onClick={exitLockIn}
+                >
+                  N
+                </button>
+              )}
             </div>
             <span className="connection" role="status">
               <i aria-hidden="true" className={connected ? "live" : ""} />

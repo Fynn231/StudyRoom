@@ -322,6 +322,10 @@
   font-size: 0.85rem;
   padding: 8px 14px;
 }
+.normal-return {
+  min-width: 44px;
+  min-height: 44px;
+}
 .session-assistance {
   scroll-margin-top: 24px;
 }
