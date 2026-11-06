@@ -1,81 +1,54 @@
 import { useLayoutEffect, useRef, type RefObject } from "react";
+import {
+  createWindField,
+  stepWindField,
+  windPose,
+  type SceneryKind,
+  type WindField,
+} from "./openScenery.js";
 
-// Stratified rows keep equal coverage on both sides, without synchronizing
-// partners. Each body has its own bounded wind, fall acceleration and flutter;
-// row-sized bounds prevent the field from collecting at one edge or bunching.
 export const DECORATION_COUNT = 48;
-function motionSeed(index: number) {
-  const value = Math.sin((index + 1) * 127.1) * 43758.5453;
-  return value - Math.floor(value);
-}
-export function decorationPose(
-  index: number,
-  time: number,
-  width: number,
-  height: number,
-  gutter: number,
-) {
-  const pair = Math.floor(index / 2),
-    side = index % 2;
-  const size = 28 + (pair % 4) * 4;
-  const scaledSize = width <= 600 ? size * 0.78 : size;
-  // Even a narrow gutter retains a little horizontal wind. Opaque reading
-  // surfaces stay above this decorative layer; nothing enters the centre lane.
-  const field = Math.max(scaledSize + 32, Math.min(gutter, 240));
-  const room = Math.max(0, field - scaledSize - 16);
-  const seed = motionSeed(index),
-    secondary = motionSeed(index + 71),
-    phase = index * 2.399963;
-  const lane = 0.18 + seed * 0.64;
-  const sway =
-    Math.sin(time * (0.13 + seed * 0.12) + phase) * 0.12 +
-    Math.sin(time * (0.05 + secondary * 0.08) + phase * 1.3) * 0.07;
-  const x = 8 + room * Math.max(0.04, Math.min(0.96, lane + sway));
-  const cycle = height + 128,
-    row = (pair * 11) % 24,
-    spacing = cycle / 24;
-  // Different, smooth instantaneous descent rates, bounded within each row.
-  // The shared mean carries the whole field through the offscreen recycle zone
-  // while independent phases avoid mirrored, conveyor-belt choreography.
-  const fallOffset =
-    Math.sin(time * (0.25 + seed * 0.3) + phase) * spacing * 0.065 +
-    Math.sin(time * (0.06 + secondary * 0.07) + phase * 1.3) * spacing * 0.025;
-  const progress = ((row + 0.5) / 24 + (time * 22 + fallOffset) / cycle) % 1;
-  return {
-    x: side ? width - scaledSize - x : x,
-    y: progress * cycle - 64,
-    size,
-    tiltX: Math.sin(time * (0.24 + seed * 0.14) + phase) * 14,
-    tiltY: Math.sin(time * (0.16 + secondary * 0.12) + phase) * 18,
-    rotation: Math.sin(time * (0.12 + seed * 0.1) + phase) * 24 + Math.sin(phase) * 50,
-  };
-}
 export function useNaturalMotion(
   ref: RefObject<HTMLDivElement | null>,
   moving: boolean,
   suspended = false,
+  kind: SceneryKind = "moon",
 ) {
-  const time = useRef(0);
+  // Each mounted owner retains positions and momentum across motion, visibility,
+  // Focus and preset toggles. Layout changes never assign a new path.
+  const fields = useRef(new Map<SceneryKind, WindField>());
   useLayoutEffect(() => {
     const layer = ref.current;
     if (!layer) return;
-    const elements = [...layer.querySelectorAll<SVGElement>(":scope > svg.flower")];
+    const elements = [
+      ...layer.querySelectorAll<SVGElement | HTMLElement>(
+        kind === "welcome" ? ":scope > i" : ":scope > svg.flower",
+      ),
+    ];
+    let field = fields.current.get(kind);
+    if (!field || field.bodies.length !== elements.length) {
+      field = createWindField(elements.length, kind);
+      fields.current.set(kind, field);
+    }
+    const state = field;
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     let raf = 0,
-      previous: number | null = null,
-      gutter = window.innerWidth * 0.14;
-    function measure() {
-      const shell = document.querySelector<HTMLElement>(".app-shell");
-      if (shell)
-        gutter =
-          shell.getBoundingClientRect().left +
-          parseFloat(window.getComputedStyle(shell).paddingLeft || "0");
-      draw();
-    }
+      previous: number | null = null;
     function draw() {
       elements.forEach((el, i) => {
-        const p = decorationPose(i, time.current, window.innerWidth, window.innerHeight, gutter);
-        el.style.transform = `translate3d(${p.x.toFixed(3)}px,${p.y.toFixed(3)}px,0) rotateX(${p.tiltX.toFixed(3)}deg) rotateY(${p.tiltY.toFixed(3)}deg) rotate(${p.rotation.toFixed(3)}deg)`;
+        const p = windPose(state, i, window.innerWidth, window.innerHeight);
+        if (kind === "leaves") {
+          el.style.width = `${p.size.toFixed(3)}px`;
+          el.style.height = `${p.size.toFixed(3)}px`;
+          el.style.translate = "none";
+        }
+        if (kind === "welcome") {
+          el.style.transform = `translate3d(${p.x.toFixed(3)}px,${p.y.toFixed(3)}px,0)`;
+          const face = el.firstElementChild as HTMLElement | null;
+          if (face)
+            face.style.transform = `rotateX(${p.tiltX.toFixed(3)}deg) rotateY(${p.tiltY.toFixed(3)}deg) rotate(${p.rotation.toFixed(3)}deg)`;
+        } else
+          el.style.transform = `translate3d(${p.x.toFixed(3)}px,${p.y.toFixed(3)}px,0) rotateX(${p.tiltX.toFixed(3)}deg) rotateY(${p.tiltY.toFixed(3)}deg) rotate(${p.rotation.toFixed(3)}deg)`;
       });
     }
     function active() {
@@ -84,7 +57,8 @@ export function useNaturalMotion(
     function loop(now: number) {
       raf = 0;
       if (!active()) return;
-      if (previous !== null) time.current += Math.min((now - previous) / 1000, 0.05);
+      if (previous !== null)
+        stepWindField(state, (now - previous) / 1000, window.innerWidth, window.innerHeight);
       previous = now;
       draw();
       raf = window.requestAnimationFrame(loop);
@@ -98,16 +72,77 @@ export function useNaturalMotion(
       layer!.dataset.running = String(active());
       if (active() && window.requestAnimationFrame) raf = window.requestAnimationFrame(loop);
     }
-    measure();
+    draw();
     sync();
     document.addEventListener("visibilitychange", sync);
     media?.addEventListener("change", sync);
-    window.addEventListener("resize", measure);
+    window.addEventListener("resize", draw);
     return () => {
       window.cancelAnimationFrame?.(raf);
       document.removeEventListener("visibilitychange", sync);
       media?.removeEventListener("change", sync);
-      window.removeEventListener("resize", measure);
+      window.removeEventListener("resize", draw);
+      if (kind === "leaves")
+        elements.forEach((el) => {
+          el.style.removeProperty("width");
+          el.style.removeProperty("height");
+          el.style.removeProperty("translate");
+        });
     };
-  }, [ref, moving, suspended]);
+  }, [ref, moving, suspended, kind]);
+}
+
+// The reference's curved oval mesh: narrow root, broad shoulders, curled rim.
+// Bake depth-sorted Lambert-shaded faces once; compositor motion preserves the
+// dimensional shading without thousands of SVG path mutations every frame.
+export function cuppedPetalFaces(index: number) {
+  const a = 0.55 + Math.sin(index * 1.7) * 0.6,
+    b = Math.cos(index * 0.8) * 0.7;
+  const rotate = ([x, y, z]: number[]) => {
+    const yy = y * Math.cos(a) - z * Math.sin(a),
+      zz = y * Math.sin(a) + z * Math.cos(a);
+    return [x * Math.cos(b) + zz * Math.sin(b), yy, -x * Math.sin(b) + zz * Math.cos(b)];
+  };
+  const faces: { d: string; color: string; depth: number }[] = [];
+  for (let k = 0; k < 5; k++)
+    for (let i = 0; i < 8; i++)
+      for (let j = 0; j < 4; j++) {
+        const angle = (k * Math.PI * 2) / 5;
+        const p = [
+          [i / 8, j / 4],
+          [(i + 1) / 8, j / 4],
+          [(i + 1) / 8, (j + 1) / 4],
+          [i / 8, (j + 1) / 4],
+        ].map(([u, v]) => {
+          const side = v * 2 - 1,
+            r = 0.1 + u * 0.94,
+            w = Math.pow(Math.sin(Math.PI * u), 0.51) * 0.39 * side;
+          return rotate([
+            Math.cos(angle) * r - Math.sin(angle) * w,
+            Math.sin(angle) * r + Math.cos(angle) * w,
+            0.5 * u * u + 0.17 * side * side * Math.sin(Math.PI * u) - 0.04,
+          ]);
+        });
+        const e = p[1].map((v, n) => v - p[0][n]),
+          f = p[3].map((v, n) => v - p[0][n]);
+        const n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
+        const lighting = (n[0] * -0.34 + n[1] * -0.48 + n[2] * 0.8) / (Math.hypot(...n) || 1);
+        const back = n[2] < 0;
+        const light =
+          (back ? 0.82 + Math.abs(lighting) * 0.11 : 0.84 + Math.max(0, lighting) * 0.16) -
+          0.07 * (1 - (i + 0.5) / 8);
+        const color = `rgb(${(back ? [242, 230, 193] : [255, 249, 225]).map((v) => Math.round(v * light)).join(",")})`;
+        faces.push({
+          d:
+            p
+              .map(([x, y, z], i) => {
+                const q = 3.7 / (3.7 - z);
+                return `${i ? "L" : "M"}${(x * q).toFixed(3)},${(y * q).toFixed(3)}`;
+              })
+              .join("") + "Z",
+          color,
+          depth: p.reduce((s, p) => s + p[2], 0) / 4,
+        });
+      }
+  return faces.sort((a, b) => a.depth - b.depth);
 }

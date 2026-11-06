@@ -11,9 +11,8 @@
 .natural-flowers[data-running="true"] .flower {
   will-change: transform;
 }
-/* Widen only where the measured side lanes have room. Resize the SVG box,
-   not its transform coordinate system: scale would push the right lane offscreen.
-   The static translation keeps the existing managed centre point unchanged. */
+/* Preserve the responsive artwork scale independently of viewport-wide motion.
+   Width remains CSS-owned for blossoms and Moon; Autumn owns its explicit size. */
 @media (min-width: 1400px) {
   .natural-flowers .flower {
     width: calc(var(--size) * 1.5);

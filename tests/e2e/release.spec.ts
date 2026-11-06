@@ -168,7 +168,7 @@ for (const [name, width, height] of [
   });
 }
 
-test("motion: all 48 bodies move; stars stay fixed; reduced/off/hidden and repeated transitions are bounded", async ({
+test("motion: all bounded bodies move; stars stay fixed; reduced/off/hidden and repeated transitions are bounded", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
@@ -182,20 +182,31 @@ test("motion: all 48 bodies move; stars stay fixed; reduced/off/hidden and repea
   ]) {
     await page.getByRole("button", { name: preset, exact: true }).click();
     await expect(page.getByLabel(toggle, { exact: true })).toBeChecked();
-    expect(
-      await page
-        .locator(".flower")
-        .evaluateAll((es) =>
-          es.every(
-            (e, i) =>
-              i % 2 === 0 ||
-              JSON.stringify([...e.querySelectorAll("path")].map((p) => p.getAttribute("d"))) ===
-                JSON.stringify(
-                  [...es[i - 1].querySelectorAll("path")].map((p) => p.getAttribute("d")),
-                ),
+    if (preset === "Juliette") {
+      const art = await page.locator(".flower").evaluateAll((es) =>
+        es.map((e) => ({
+          faces: e.querySelectorAll("path").length,
+          centre: e.querySelectorAll("ellipse").length,
+          mesh: [...e.querySelectorAll("path")].map((p) => p.getAttribute("d")).join(""),
+        })),
+      );
+      expect(art.every((a) => a.faces === 160 && a.centre === 1)).toBe(true);
+      expect(new Set(art.map((a) => a.mesh)).size).toBeGreaterThanOrEqual(40);
+    } else
+      expect(
+        await page
+          .locator(".flower")
+          .evaluateAll((es) =>
+            es.every(
+              (e, i) =>
+                i % 2 === 0 ||
+                JSON.stringify([...e.querySelectorAll("path")].map((p) => p.getAttribute("d"))) ===
+                  JSON.stringify(
+                    [...es[i - 1].querySelectorAll("path")].map((p) => p.getAttribute("d")),
+                  ),
+            ),
           ),
-        ),
-    ).toBe(true);
+      ).toBe(true);
     await page.screenshot({
       path: info.outputPath(`${preset.toLowerCase().replaceAll(" ", "-")}-balanced.png`),
     });
@@ -204,8 +215,9 @@ test("motion: all 48 bodies move; stars stay fixed; reduced/off/hidden and repea
     const a = await poses();
     await page.waitForTimeout(800);
     const b = await poses();
-    expect(a).toHaveLength(48);
-    expect(a.filter((p, i) => p !== b[i])).toHaveLength(48);
+    const count = preset === "Autumn Letters" ? 64 : 48;
+    expect(a).toHaveLength(count);
+    expect(a.filter((p, i) => p !== b[i])).toHaveLength(count);
     expect(a.every(Boolean)).toBe(true);
     if (preset === "Moon Garden")
       expect(
@@ -242,7 +254,7 @@ test("motion: all 48 bodies move; stars stay fixed; reduced/off/hidden and repea
     await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
     await expect(page.locator(".natural-flowers")).toHaveAttribute("data-running", "true");
   }
-  await expect(page.locator(".flower")).toHaveCount(48);
+  await expect(page.locator(".flower")).toHaveCount(64);
   await page.screenshot({ path: info.outputPath("motion-after.png") });
 });
 

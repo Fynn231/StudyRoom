@@ -84,6 +84,8 @@
   accent-color: var(--accent);
 }
 .welcome-scene {
+  --welcome-flake-light: #ffffffb0;
+  --welcome-flake-shade: #a9c49a80;
   position: fixed;
   inset: 0;
   margin: 0;
@@ -155,41 +157,37 @@
 }
 .welcome-petals i {
   position: absolute;
-  top: -50px;
+  left: 0;
+  top: 0;
   width: var(--leaf-size);
   height: calc(var(--leaf-size) * 1.6);
-  animation: welcome-drift var(--fall-duration) linear var(--fall-delay) infinite;
 }
 .welcome-petals i span {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 78% 22% 68% 32% / 58% 35% 65% 42%;
-  background:
-    radial-gradient(ellipse at 26% 20%, #fffef2 0%, #fffef260 34%, transparent 60%),
-    linear-gradient(115deg, #dce9c7 14%, #edf1da 42%, #9eaf82 51%, #bfd0a5 72%, #7a946a);
-  box-shadow:
-    inset 2px 1px 3px #fffef2b0,
-    inset -3px -2px 4px #506c4350,
-    1px 3px 4px #42623e15;
-  transform-origin: 50% 65%;
-  animation: welcome-swirl var(--orbit-duration) ease-in-out var(--fall-delay) infinite;
-  animation-direction: var(--orbit-direction);
+  transform-origin: 50% 60%;
+  border-radius: 80% 20% 65% 35%;
+  background: linear-gradient(145deg, var(--welcome-flake-light), var(--welcome-flake-shade));
 }
-@keyframes welcome-swirl {
-  0%,
-  100% {
-    transform: translate3d(calc(var(--orbit-width) * -0.65), 0, 0) rotate(-35deg) scaleX(0.75);
-  }
-  25% {
-    transform: translate3d(0, -24px, 0) rotate(50deg) scaleX(1);
-  }
-  50% {
-    transform: translate3d(var(--orbit-width), 0, 0) rotate(155deg) scaleX(0.45);
-  }
-  75% {
-    transform: translate3d(0, 28px, 0) rotate(245deg) scaleX(1);
-  }
+.welcome-petals[data-running="true"] i,
+.welcome-petals[data-running="true"] i span {
+  will-change: transform;
+}
+/* Dark flakes are slate translucent forms, not white artwork on a dark canvas. */
+.lock-in-mode .welcome-flake {
+  border: 1px solid color-mix(in srgb, var(--locked-accent) 30%, transparent);
+  background: linear-gradient(155deg, var(--welcome-flake-light), var(--welcome-flake-shade));
+}
+/* Home keeps each selected dark palette rather than replacing it with sage. */
+.lock-in-mode .welcome-scene {
+  background: var(--locked-background);
+  color: var(--locked-timer);
+  --welcome-flake-light: #4f676fcc;
+  --welcome-flake-shade: #15232be6;
+}
+.lock-in-mode .welcome-copy :is(.eyebrow, .quiet-note) {
+  color: var(--locked-timer);
 }
 @keyframes welcome-arrive {
   from {
@@ -199,23 +197,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-@keyframes welcome-drift {
-  0% {
-    transform: translate3d(0, -8vh, 0) rotate(var(--tilt));
-  }
-  23% {
-    transform: translate3d(calc(var(--wind) * 0.65), 17vh, 0) rotate(calc(var(--tilt) + 15deg));
-  }
-  51% {
-    transform: translate3d(calc(var(--wind) * -0.3), 48vh, 0) rotate(calc(var(--tilt) - 22deg));
-  }
-  76% {
-    transform: translate3d(var(--wind), 85vh, 0) rotate(calc(var(--tilt) + 32deg));
-  }
-  100% {
-    transform: translate3d(calc(var(--wind) * 0.2), 116vh, 0) rotate(var(--tilt));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -230,10 +211,6 @@
   .welcome-copy,
   .locked-atmosphere {
     animation: none !important;
-  }
-  .welcome-petals i {
-    top: var(--rest-height);
-    transform: rotate(var(--tilt));
   }
 }
 @media (max-width: 600px) {
@@ -341,7 +318,6 @@
 .focus-view .session-tools,
 .focus-view .page-heading,
 .focus-view .demo-note,
-.focus-view .study-profile,
 .focus-view .spotify-listening-setup,
 .focus-view .help-panel,
 .focus-view .goal-panel,

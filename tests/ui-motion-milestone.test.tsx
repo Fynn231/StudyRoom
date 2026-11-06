@@ -5,7 +5,7 @@ import { JSDOM } from "jsdom";
 import { WelcomeScene } from "../src/WelcomeScene.js";
 import { NormalGradient } from "../src/NormalGradient.js";
 
-test("welcome distributes its static composition and pauses hidden without adding frame producers", async (t) => {
+test("welcome distributes its static composition and pauses hidden with its own lifecycle producer", async (t) => {
   const dom = new JSDOM("<!doctype html><body></body>", { url: "http://localhost" });
   Object.defineProperty(dom.window.document, "hidden", { configurable: true, value: false });
   Object.assign(globalThis, {
@@ -22,9 +22,8 @@ test("welcome distributes its static composition and pauses hidden without addin
   const view = render(<WelcomeScene leaving={false} onEnter={() => {}} />);
   const petals = [...view.container.querySelectorAll<HTMLElement>(".welcome-petals i")];
   assert.equal(petals.length, 18);
-  assert.equal(new Set(petals.map((e) => e.style.left)).size, 18);
-  assert.equal(new Set(petals.map((e) => e.style.getPropertyValue("--rest-height"))).size, 18);
-  assert.equal(new Set(petals.map((e) => e.style.getPropertyValue("--fall-duration"))).size, 18);
+  assert.equal(new Set(petals.map((e) => e.style.transform)).size, 18);
+  assert.equal(new Set(petals.map((e) => e.style.getPropertyValue("--leaf-size"))).size, 18);
   const dialog = view.container.querySelector("dialog")!;
   assert.equal(dialog.dataset.hidden, "false");
   act(() => {

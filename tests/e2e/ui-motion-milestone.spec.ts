@@ -111,8 +111,10 @@ for (const [name, width, height] of [
         right: boxes.filter((r) => r.x >= innerWidth / 2 && r.x < innerWidth).length,
       };
     });
-    expect(lanes.left).toBe(24);
-    expect(lanes.right).toBe(24);
+    expect(lanes.left).toBeGreaterThanOrEqual(12);
+    expect(lanes.left).toBeLessThanOrEqual(35);
+    expect(lanes.right).toBeGreaterThanOrEqual(12);
+    expect(lanes.right).toBeLessThanOrEqual(35);
     await appearance.click();
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: info.outputPath(`${name}-juliette.png`), fullPage: true });

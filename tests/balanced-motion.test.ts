@@ -1,48 +1,55 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decorationPose, DECORATION_COUNT } from "../src/naturalMotion.js";
+import { createWindField, stepWindField, windPose } from "../src/openScenery.js";
 
-test("normal decorations retain equal side populations and bounded cyclic spacing for thirty minutes", () => {
-  for (const [width, height, gutter] of [
-    [1600, 1000, 208],
-    [1280, 800, 48],
-    [390, 844, 12],
-    [320, 640, 8],
-  ]) {
-    for (let time = 0; time <= 1800; time += 0.37) {
-      const rows: number[][] = [[], []];
-      const weights = [0, 0];
-      for (let index = 0; index < DECORATION_COUNT; index++) {
-        const pose = decorationPose(index, time, width, height, gutter);
-        const side = index % 2;
-        const size = pose.size * (width <= 600 ? 0.78 : 1);
-        assert.ok(Number.isFinite(pose.x) && Number.isFinite(pose.y));
-        assert.ok(pose.x >= 0 && pose.x + size <= width);
-        assert.ok(side ? pose.x > width / 2 - size : pose.x < width / 2);
-        assert.ok(pose.y >= -64 && pose.y < height + 64);
-        rows[side].push(pose.y);
-        weights[side] += pose.size * pose.size;
+test("best-candidate composition is balanced, nonmirrored and unbanded, with no coincident seeds", () => {
+  for (const n of [18, 48, 64]) {
+    const field = createWindField(n);
+    assert.deepEqual(field, createWindField(n), "deterministic initialization");
+    const bins = [0, 0, 0, 0];
+    for (const b of field.bodies) bins[(b.x >= 0.5 ? 1 : 0) + (b.y >= 0.5 ? 2 : 0)]++;
+    assert.ok(
+      bins.every((nq) => nq >= Math.floor(n / 8) && nq <= Math.ceil(n * 0.4)),
+      `quadrants ${bins}`,
+    );
+    assert.ok(new Set(field.bodies.map((b) => b.y.toFixed(4))).size >= n * 0.9, "no paired rows");
+    assert.ok(new Set(field.bodies.map((b) => b.x.toFixed(4))).size >= n * 0.9, "no fixed columns");
+    for (let i = 0; i < n; i++)
+      for (let j = i + 1; j < n; j++) {
+        const a = field.bodies[i],
+          b = field.bodies[j];
+        assert.ok(Math.hypot(a.x - b.x, a.y - b.y) > 0.055, "no initial clumps");
+        assert.ok(
+          Math.abs(a.x + b.x - 1) > 0.00001 || Math.abs(a.y - b.y) > 0.00001,
+          "no exact mirror pairing",
+        );
       }
-      assert.equal(
-        weights[0],
-        weights[1],
-        "equal total artwork weight without exact mirror positions",
+  }
+});
+
+test("wind maintains broad coverage without dense sinks over two modeled minutes", () => {
+  const field = createWindField(64, "leaves");
+  for (let f = 0; f < 7200; f++) {
+    stepWindField(field, 1 / 60, 1366, 900);
+    if (f % 300 !== 0) continue;
+    const bins = [0, 0, 0, 0],
+      // Coverage must use projected screen positions, not virtual curl coordinates.
+      visible = field.bodies
+        .map((_, i) => {
+          const p = windPose(field, i, 1366, 900);
+          return { x: (p.x + p.size / 2) / 1366, y: (p.y + p.size / 2) / 900 };
+        })
+        .filter((b) => b.x >= 0 && b.x <= 1 && b.y >= 0 && b.y <= 1);
+    visible.forEach((b) => bins[(b.x >= 0.5 ? 1 : 0) + (b.y >= 0.5 ? 2 : 0)]++);
+    assert.ok(
+      bins.every((n) => n >= 5 && n <= 27),
+      `no quadrant emptied or dominant clump at ${f / 60}s: ${bins}`,
+    );
+    assert.ok(visible.length >= 40, "field does not drain away");
+    for (const b of visible)
+      assert.ok(
+        visible.filter((a) => Math.hypot(a.x - b.x, a.y - b.y) < 0.05).length <= 5,
+        "no tight clusters",
       );
-      for (const side of rows) {
-        assert.equal(side.length, 24);
-        side.sort((a, b) => a - b);
-        const cycle = height + 128;
-        for (let index = 0; index < side.length; index++) {
-          const gap: number =
-            index === side.length - 1
-              ? side[0] + cycle - side[index]
-              : side[index + 1] - side[index];
-          assert.ok(
-            gap > (cycle / 24) * 0.79,
-            "rows cannot bunch together, including the recycle seam",
-          );
-        }
-      }
-    }
   }
 });

@@ -203,6 +203,53 @@ test("missing asset reports unavailable without trapping entry or retry", async 
   await expect(page.getByRole("timer")).toHaveText("25:00");
 });
 
+for (const permitted of [false, true]) {
+  test(`direct room entry audits ${permitted ? "policy-permitted autoplay" : "blocked gesture recovery"} without a welcome or timer start`, async ({
+    page,
+  }, info) => {
+    await observe(page, !permitted);
+    if (permitted) {
+      await page.goto("/healthz");
+      await page.locator("body").click();
+    }
+    await page.goto("/?room=ABC123");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByLabel("Your name", { exact: true })).toBeVisible();
+    await panel(page);
+    if (!permitted) {
+      await expect(page.locator(".ambience-panel [role=status]")).toContainText(
+        "paused by your browser",
+      );
+      await page.evaluate(() => ((window as any).__allowResume = true));
+      await page.getByLabel("Your name", { exact: true }).click();
+    }
+    await expect(page.locator(".ambience-panel [role=status]")).toContainText(
+      "Wind over the Reading Terrace is playing.",
+    );
+    await expect.poll(() => gain(page)).toBeGreaterThan(0.29);
+    await expect(page.getByRole("timer")).toHaveText("25:00");
+    await expect(page.getByRole("button", { name: "Join room", exact: true })).toBeEnabled();
+    const data = await page.evaluate(() => {
+      const a = (window as any).__roomAudio;
+      return {
+        contexts: a.contexts.length,
+        sources: a.sources.length,
+        duration: a.sources[0].buffer.duration,
+        loop: a.sources[0].loop,
+        resumes: a.resumes,
+      };
+    });
+    expect(data.contexts).toBe(1);
+    expect(data.sources).toBe(1);
+    expect(data.duration).toBeCloseTo(120, 4);
+    expect(data.loop).toBe(true);
+    await info.attach("direct-entry-audio", {
+      body: JSON.stringify(data, null, 2),
+      contentType: "application/json",
+    });
+  });
+}
+
 test("policy-permitted welcome autoplay can be silenced before entry", async ({ page }, info) => {
   await observe(page);
   // Establish genuine same-origin browser interaction, not an autoplay-policy launch flag.

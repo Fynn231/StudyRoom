@@ -13,6 +13,7 @@ import { HowStudyRoomWorks } from "./HowStudyRoomWorks.js";
 import { SessionIntention } from "./SessionIntention.js";
 
 import { StudyProfile, ProfileCard } from "./StudyProfile.js";
+import { ProfileAccess } from "./ProfileAccess.js";
 import { ListeningCard, SpotifyPresence } from "./SpotifyPresence.js";
 import { readCheckpoint, saveCheckpoint } from "./sessionCheckpoint.js";
 import { parseSavedPlans, STUDY_PLANS_KEY } from "./savedStudyStore.js";
@@ -696,8 +697,12 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
           Skip to content
         </a>
         {lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}
-        {motionPalette && <NormalGradient colors={motionPalette} suspended={lockIn} />}
-        {flowerEffect !== "none" && <Flowers effect={flowerEffect} suspended={lockIn} />}
+        {motionPalette && (
+          <NormalGradient colors={motionPalette} suspended={lockIn || welcomeOpen} />
+        )}
+        {flowerEffect !== "none" && (
+          <Flowers effect={flowerEffect} suspended={lockIn || welcomeOpen} />
+        )}
         <div className="app-shell" inert={completion || welcomeOpen ? true : undefined}>
           <header className="masthead">
             <div className="brand-nav">
@@ -731,6 +736,15 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
                     : "Party connected · local demo"
                   : "Disconnected · shared controls unavailable"}
             </span>
+            <ProfileAccess>
+              <StudyProfile
+                inRoom={!!room && connected}
+                shared={!!room?.participants.find((p) => p.id === selfId)?.profile}
+                disabled={disabled}
+                onShare={(profile) => send("profile:share", { profile })}
+                onWithdraw={() => send("profile:withdraw", {})}
+              />
+            </ProfileAccess>
           </header>
           {focusView && (
             <aside className="focus-view-toolbar" aria-label="Focus view controls">
@@ -741,7 +755,17 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
             </aside>
           )}
           <main id="main" tabIndex={-1}>
-            <QuickGuide />
+            <QuickGuide
+              setup={{
+                minutes,
+                disabled: timerDisabled || !fresh,
+                invalid: durationMinutes === null,
+                onMinutes: editMinutes,
+                intention: draft,
+                onIntention: setDraft,
+              }}
+              room={roomAmbience}
+            />
 
             <div className="page-heading">
               <div>
@@ -1238,13 +1262,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
               />
               <HowStudyRoomWorks />
             </div>
-            <StudyProfile
-              inRoom={!!room && connected}
-              shared={!!room?.participants.find((p) => p.id === selfId)?.profile}
-              disabled={disabled}
-              onShare={(profile) => send("profile:share", { profile })}
-              onWithdraw={() => send("profile:withdraw", {})}
-            />
+
             <details className="optional-panel spotify-listening-setup">
               <summary>Your Spotify listening status</summary>
               <SpotifyPresence

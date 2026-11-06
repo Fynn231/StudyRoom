@@ -1,75 +1,116 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import React from 'react';
-import { JSDOM } from 'jsdom';
-import { App } from '../src/App.js';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import React from "react";
+import { JSDOM } from "jsdom";
+import { App } from "../src/App.js";
 
-for (const [theme, kind, toggleName] of [['Moon Garden', 'moon', 'Drifting moonlight'], ['Autumn Letters', 'leaves', 'Falling leaves']]) {
-  test(`${theme} has original scattered art and opt-in motion without changing private state`, async t => {
-    const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost' });
-    Object.assign(globalThis, { window: dom.window, document: dom.window.document, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
-    const { render, fireEvent, within, cleanup } = await import('@testing-library/react');
-    t.after(() => { cleanup(); dom.window.close(); });
-    const view = render(<App />), q = within(view.container);
-    const music = view.container.querySelector('.music-panel');
-    fireEvent.click(q.getByText('Music', { selector: 'summary' }));
-    fireEvent.change(q.getByLabelText('Spotify link'), { target: { value: 'https://open.spotify.com/playlist/0123456789ABCDEFGHIJKL' } });
-    fireEvent.click(q.getByRole('button', { name: 'Select music link' }));
-    const link = q.getByRole('link', { name: 'Open in Spotify (new tab)' });
-    const timer = q.getByRole('timer'), draft = q.getByLabelText('Your session intention');
-    fireEvent.change(draft, { target: { value: 'SYNTHETIC DECOR DRAFT' } });
-    fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
-    fireEvent.click(q.getByText('Appearance', { selector: 'summary' }));
-    fireEvent.click(q.getByRole('button', { name: theme }));
-    const layer = view.container.querySelector<HTMLElement>('.flower-layer')!;
+for (const [theme, kind, toggleName] of [
+  ["Moon Garden", "moon", "Drifting moonlight"],
+  ["Autumn Letters", "leaves", "Falling leaves"],
+]) {
+  test(`${theme} has original scattered art and opt-in motion without changing private state`, async (t) => {
+    const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
+    Object.assign(globalThis, {
+      window: dom.window,
+      document: dom.window.document,
+      HTMLElement: dom.window.HTMLElement,
+      IS_REACT_ACT_ENVIRONMENT: true,
+    });
+    const { render, fireEvent, within, cleanup } = await import("@testing-library/react");
+    t.after(() => {
+      cleanup();
+      dom.window.close();
+    });
+    const view = render(<App />),
+      q = within(view.container);
+    const music = view.container.querySelector(".music-panel");
+    fireEvent.click(q.getByText("Music", { selector: "summary" }));
+    fireEvent.change(q.getByLabelText("Spotify link"), {
+      target: { value: "https://open.spotify.com/playlist/0123456789ABCDEFGHIJKL" },
+    });
+    fireEvent.click(q.getByRole("button", { name: "Select music link" }));
+    const link = q.getByRole("link", { name: "Open in Spotify (new tab)" });
+    const timer = q.getByRole("timer"),
+      draft = q.getByLabelText("Your session intention");
+    fireEvent.change(draft, { target: { value: "SYNTHETIC DECOR DRAFT" } });
+    fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+    fireEvent.click(q.getByText("Appearance", { selector: "summary" }));
+    fireEvent.click(q.getByRole("button", { name: theme }));
+    const layer = view.container.querySelector<HTMLElement>(".flower-layer")!;
     assert.equal(layer.dataset.kind, kind);
-    assert.equal(layer.dataset.falling, 'true');
-    assert.equal(layer.getAttribute('aria-hidden'), 'true');
-    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48, 'preserve approved direct decorations');
-    assert.equal(layer.querySelectorAll('svg.flower .moon-stars, svg.flower svg.star').length, 0, 'never nest a starfield inside a decoration SVG');
-    assert.equal(layer.querySelectorAll('.moon-stars').length, kind === 'moon' ? 1 : 0);
-    assert.equal(layer.querySelectorAll(':scope > .moon-stars > svg.star').length, kind === 'moon' ? 24 : 0, 'one bounded sibling starfield only for Moon');
-    assert.equal(layer.querySelectorAll('svg').length, kind === 'moon' ? 72 : 48);
-    if (kind === 'moon') {
-      const starfield = layer.querySelector<HTMLElement>(':scope > .moon-stars')!;
-      assert.equal(starfield.style.position, 'absolute');
-      assert.equal(starfield.style.inset, '0px');
-      assert.equal(starfield.style.overflow, 'hidden');
-      for (const star of starfield.querySelectorAll<SVGElement>('svg.star')) {
-        assert.equal(star.namespaceURI, 'http://www.w3.org/2000/svg');
-        assert.equal(star.getAttribute('viewBox'), '-1.2 -1.2 2.4 2.4', 'contain the existing centered star path including stroke');
-        assert.equal(star.style.position, 'absolute');
-        assert.equal(star.style.width, 'var(--s)');
-        assert.equal(star.style.height, 'var(--s)');
-        assert.ok(parseFloat(star.style.getPropertyValue('--s')) > 0);
-        assert.ok(star.querySelector('path')?.getAttribute('d'));
+    assert.equal(layer.dataset.falling, "true");
+    assert.equal(layer.getAttribute("aria-hidden"), "true");
+    assert.equal(
+      layer.querySelectorAll(":scope > svg.flower").length,
+      kind === "moon" ? 48 : 64,
+      "bounded normal density; preserve Moon count",
+    );
+    assert.equal(
+      layer.querySelectorAll("svg.flower .moon-stars, svg.flower svg.star").length,
+      0,
+      "never nest a starfield inside a decoration SVG",
+    );
+    assert.equal(layer.querySelectorAll(".moon-stars").length, kind === "moon" ? 1 : 0);
+    assert.equal(
+      layer.querySelectorAll(":scope > .moon-stars > svg.star").length,
+      kind === "moon" ? 24 : 0,
+      "one bounded sibling starfield only for Moon",
+    );
+    assert.equal(layer.querySelectorAll("svg").length, kind === "moon" ? 72 : 64);
+    if (kind === "moon") {
+      const starfield = layer.querySelector<HTMLElement>(":scope > .moon-stars")!;
+      assert.equal(starfield.style.position, "absolute");
+      assert.equal(starfield.style.inset, "0px");
+      assert.equal(starfield.style.overflow, "hidden");
+      for (const star of starfield.querySelectorAll<SVGElement>("svg.star")) {
+        assert.equal(star.namespaceURI, "http://www.w3.org/2000/svg");
+        assert.equal(
+          star.getAttribute("viewBox"),
+          "-1.2 -1.2 2.4 2.4",
+          "contain the existing centered star path including stroke",
+        );
+        assert.equal(star.style.position, "absolute");
+        assert.equal(star.style.width, "var(--s)");
+        assert.equal(star.style.height, "var(--s)");
+        assert.ok(parseFloat(star.style.getPropertyValue("--s")) > 0);
+        assert.ok(star.querySelector("path")?.getAttribute("d"));
       }
     }
-    assert.ok(layer.querySelectorAll('path').length >= 12, 'original inline paths, not flower art');
-    assert.equal(layer.querySelectorAll('image,img,iframe,audio,video,button,input,a').length, 0);
+    assert.ok(layer.querySelectorAll("path").length >= 12, "original inline paths, not flower art");
+    assert.equal(layer.querySelectorAll("image,img,iframe,audio,video,button,input,a").length, 0);
     const toggle = q.getByLabelText(toggleName) as HTMLInputElement;
     assert.equal(toggle.checked, true);
-    fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'false');
-    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48);
-    assert.equal(layer.querySelectorAll('.moon-stars').length, kind === 'moon' ? 1 : 0, 'motion never multiplies the starfield');
-    assert.equal(layer.querySelectorAll('svg.flower .moon-stars, svg.flower svg.star').length, 0);
-    fireEvent.click(toggle); assert.equal(layer.dataset.falling, 'true');
     fireEvent.click(toggle);
-    fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
-    assert.equal(layer.dataset.kind, 'flowers');
-    assert.equal(layer.dataset.falling, 'true');
-    assert.equal(layer.querySelectorAll(':scope > svg.flower').length, 48);
-    assert.equal(layer.querySelectorAll('.moon-stars, svg.star').length, 0, 'leaving Moon removes its entire starfield');
-    fireEvent.click(q.getByRole('button', { name: theme }));
+    assert.equal(layer.dataset.falling, "false");
+    assert.equal(layer.querySelectorAll(":scope > svg.flower").length, kind === "moon" ? 48 : 64);
+    assert.equal(
+      layer.querySelectorAll(".moon-stars").length,
+      kind === "moon" ? 1 : 0,
+      "motion never multiplies the starfield",
+    );
+    assert.equal(layer.querySelectorAll("svg.flower .moon-stars, svg.flower svg.star").length, 0);
+    fireEvent.click(toggle);
+    assert.equal(layer.dataset.falling, "true");
+    fireEvent.click(toggle);
+    fireEvent.click(q.getByRole("button", { name: "Juliette" }));
+    assert.equal(layer.dataset.kind, "flowers");
+    assert.equal(layer.dataset.falling, "true");
+    assert.equal(layer.querySelectorAll(":scope > svg.flower").length, 48);
+    assert.equal(
+      layer.querySelectorAll(".moon-stars, svg.star").length,
+      0,
+      "leaving Moon removes its entire starfield",
+    );
+    fireEvent.click(q.getByRole("button", { name: theme }));
     assert.equal((q.getByLabelText(toggleName) as HTMLInputElement).checked, true);
-    assert.equal(q.getByRole('timer'), timer);
-    assert.equal(q.getByLabelText('Your session intention'), draft);
-    assert.equal((draft as HTMLTextAreaElement).value, 'SYNTHETIC DECOR DRAFT');
-    assert.ok(q.getByRole('button', { name: 'Pause focus' }));
-    assert.equal(view.container.querySelector('.music-panel'), music);
-    assert.equal(q.getByRole('link', { name: 'Open in Spotify (new tab)' }), link);
+    assert.equal(q.getByRole("timer"), timer);
+    assert.equal(q.getByLabelText("Your session intention"), draft);
+    assert.equal((draft as HTMLTextAreaElement).value, "SYNTHETIC DECOR DRAFT");
+    assert.ok(q.getByRole("button", { name: "Pause focus" }));
+    assert.equal(view.container.querySelector(".music-panel"), music);
+    assert.equal(q.getByRole("link", { name: "Open in Spotify (new tab)" }), link);
     assert.equal(dom.window.localStorage.length, 0);
-    fireEvent.click(q.getByRole('button', { name: 'Reset appearance to white and sage' }));
-    assert.equal(view.container.querySelector('.flower-layer'), null);
+    fireEvent.click(q.getByRole("button", { name: "Reset appearance to white and sage" }));
+    assert.equal(view.container.querySelector(".flower-layer"), null);
   });
 }

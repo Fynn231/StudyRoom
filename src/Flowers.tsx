@@ -1,15 +1,18 @@
 import { memo, useRef, type CSSProperties } from "react";
 import type { FlowerEffect } from "./Appearance.js";
-import { useNaturalMotion } from "./naturalMotion.js";
+import { cuppedPetalFaces, useNaturalMotion } from "./naturalMotion.js";
 
-// 48 flower positions (scattered across the viewport)
-const SCATTER: Array<[number, number]> = Array.from({ length: 48 }, (_, i) => {
+// Autumn keeps its reviewed 64-body field; Juliette and Moon retain 48 original bodies.
+export const NORMAL_SCENERY_COUNT = 64;
+const SCATTER: Array<[number, number]> = Array.from({ length: NORMAL_SCENERY_COUNT }, (_, i) => {
   const seed = (salt: number) => {
     const n = Math.sin((i + 1) * 127.1 + salt * 311.7) * 43758.5453;
     return (n - Math.floor(n)) * 100;
   };
   return [seed(1), seed(2)];
 });
+
+const CUPPED = SCATTER.slice(0, 48).map((_, i) => cuppedPetalFaces(i));
 
 // Star positions for the Moon atmosphere (used only when kind === 'moon')
 const STARS: Array<{ x: number; y: number; s: number }> = [
@@ -52,7 +55,7 @@ export const Flowers = memo(function Flowers({
     : effect.startsWith("leaves-")
       ? "leaves"
       : "flowers";
-  useNaturalMotion(layer, effect.endsWith("falling"), suspended);
+  useNaturalMotion(layer, effect.endsWith("falling"), suspended, kind);
 
   // Render starfield for Moon mode
   const stars =
@@ -99,7 +102,7 @@ export const Flowers = memo(function Flowers({
       data-kind={kind}
       data-falling={effect.endsWith("falling")}
     >
-      {SCATTER.map(([x, y], i) => (
+      {SCATTER.slice(0, kind === "leaves" ? NORMAL_SCENERY_COUNT : 48).map(([x, y], i) => (
         <svg
           key={i}
           className="flower"
@@ -108,7 +111,7 @@ export const Flowers = memo(function Flowers({
           style={
             {
               "--x": `${x}%`,
-              "--size": `${28 + (Math.floor(i / 2) % 4) * 4}px`,
+              "--size": `${kind === "flowers" ? 42 + (Math.floor(i / 2) % 4) * 7 : 28 + (Math.floor(i / 2) % 4) * 4}px`,
               "--duration": `${24 + (i % 7) * 3}s`,
               "--delay": `${-i * 7}s`,
               "--rest": `${y}vh`,
@@ -117,36 +120,15 @@ export const Flowers = memo(function Flowers({
         >
           {kind === "flowers" ? (
             <>
-              <defs>
-                <radialGradient id={`petal-${i}`} cx="35%" cy="20%" r="85%">
-                  <stop offset="0" stopColor="#fffef1" />
-                  <stop offset=".55" stopColor="#f4e8bf" />
-                  <stop offset="1" stopColor="#c9b882" />
-                </radialGradient>
-              </defs>
-              {[0, 72, 144, 216, 288].map((angle) => (
-                <g key={angle} transform={`rotate(${angle})`}>
-                  <path
-                    d="M0 .1 C-.22 -.12,-.58 -.42,-.47 -.82 C-.36 -1.2,.32 -1.25,.47 -.84 C.61 -.45,.23 -.08,0 .1Z"
-                    fill={`url(#petal-${i})`}
-                    stroke="#d4c392"
-                    strokeWidth=".018"
-                  />
-                  <path
-                    d="M-.36 -.82 C-.2 -1.06,.22 -1.08,.36 -.86"
-                    fill="none"
-                    stroke="#fffef6"
-                    strokeWidth=".055"
-                    opacity=".85"
-                  />
-                  <path
-                    d="M0 -.08 Q-.08 -.45,.06 -.82"
-                    fill="none"
-                    stroke="#c4ad78"
-                    strokeWidth=".02"
-                    opacity=".4"
-                  />
-                </g>
+              {CUPPED[i].map((face, n) => (
+                <path
+                  key={n}
+                  d={face.d}
+                  fill={face.color}
+                  stroke={face.color}
+                  strokeWidth=".012"
+                  strokeLinejoin="round"
+                />
               ))}
               <ellipse cx="0" cy="0" rx=".145" ry=".105" fill="#b89042" />
             </>

@@ -1,4 +1,6 @@
 import { useId, useRef, useState } from "react";
+import { useToolNavigation } from "./useToolNavigation.js";
+import { roomAudioMessage, type RoomAmbience } from "./useRoomAmbience.js";
 const sections = [
   {
     name: "Start",
@@ -43,7 +45,7 @@ const sections = [
     title: "Your room, your choice of what to share.",
     text: "Join a Party room to see others. Profiles and Spotify activity stay private until you share them. Study badges use completed sessions saved on this device, not verified rankings.",
     actions: [
-      ["Your profile", ".study-profile"],
+      ["Your profile", ".profile-account-button"],
       ["Listening status", ".spotify-listening-setup"],
     ],
   },
@@ -54,17 +56,21 @@ const sections = [
     actions: [["Privacy and full instructions", ".help-panel"]],
   },
 ] as const;
-function openTool(selector: string) {
-  const target = document.querySelector<HTMLElement>(selector);
-  if (!target) return;
-  for (let node: HTMLElement | null = target; node; node = node.parentElement)
-    if (node.tagName === "DETAILS") (node as HTMLDetailsElement).open = true;
-  const focus =
-    target.tagName === "DETAILS" ? target.querySelector<HTMLElement>("summary") : target;
-  focus?.focus();
-  target.scrollIntoView?.({ block: "start", behavior: "auto" });
-}
-export function QuickGuide() {
+export function QuickGuide({
+  setup,
+  room,
+}: {
+  setup: {
+    minutes: string;
+    disabled: boolean;
+    invalid: boolean;
+    onMinutes: (value: string) => void;
+    intention: string;
+    onIntention: (value: string) => void;
+  };
+  room: RoomAmbience;
+}) {
+  const openTool = useToolNavigation();
   const id = useId(),
     buttons = useRef<(HTMLButtonElement | null)[]>([]),
     [active, setActive] = useState(0),
@@ -111,6 +117,57 @@ export function QuickGuide() {
         <h2>{section.title}</h2>
         <p>{section.text}</p>
         <div className="quick-guide-actions">
+          {active === 0 && (
+            <details className="quick-setup">
+              <summary>Set up this session</summary>
+              <div className="quick-setup-fields">
+                <label htmlFor={`${id}-minutes`}>Quick focus length</label>
+                <input
+                  id={`${id}-minutes`}
+                  type="number"
+                  min="1"
+                  max="180"
+                  step="1"
+                  inputMode="numeric"
+                  value={setup.minutes}
+                  disabled={setup.disabled}
+                  aria-invalid={setup.invalid}
+                  aria-describedby={`${id}-setup-note`}
+                  onChange={(e) => setup.onMinutes(e.target.value)}
+                />
+                <label htmlFor={`${id}-intention`}>Quick session intention</label>
+                <textarea
+                  id={`${id}-intention`}
+                  value={setup.intention}
+                  maxLength={240}
+                  onChange={(e) => setup.onIntention(e.target.value)}
+                />
+                <small id={`${id}-setup-note`}>
+                  {setup.invalid
+                    ? "Enter a whole number from 1 to 180 minutes. "
+                    : "Minutes · 1–180. "}
+                  These are your actual timer and private intention. Nothing starts or shares here.
+                  Reset an in-progress cycle to change its duration.
+                </small>
+              </div>
+            </details>
+          )}
+          {active === 3 && (
+            <div className="quick-ambience">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={room.preference.rain}
+                  onChange={(e) => room.change({ rain: e.target.checked })}
+                />
+                Quick optional rain
+              </label>
+              <button type="button" aria-pressed={room.preference.muted} onClick={room.toggleMute}>
+                {room.preference.muted ? "Unmute ambience" : "Mute ambience"}
+              </button>
+              <small>{roomAudioMessage(room.status, room.preference)}</small>
+            </div>
+          )}
           {section.actions.map(([label, selector]) => (
             <button key={label} type="button" onClick={() => openTool(selector)}>
               {label}

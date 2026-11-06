@@ -80,10 +80,7 @@ test("profiles are private until shared, scoped to room, editable without leakin
         exact: true,
       }),
     ).toBeVisible();
-    await p
-      .locator("summary")
-      .filter({ hasText: /^Your study profile$/ })
-      .click();
+    await p.getByRole("button", { name: "Profile and account", exact: true }).click();
     await p.getByLabel("Profile display name", { exact: true }).fill("Cedar the reader");
     await p.getByLabel("About your study space", { exact: true }).fill("One chapter at a time");
     await expect(q.locator(".people")).not.toContainText("Cedar the reader");

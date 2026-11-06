@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react";
+import { useNaturalMotion } from "./naturalMotion.js";
+import { windSeed } from "./openScenery.js";
 import { usePrivateStorage } from "./privateStorage.js";
 export function useWelcome(enabled: boolean) {
   const storage = usePrivateStorage();
@@ -68,6 +70,8 @@ export function WelcomeScene({
   sound?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const petals = useRef<HTMLDivElement>(null);
+  useNaturalMotion(petals, true, false, "welcome");
   useEffect(() => {
     const sync = () => {
       if (dialog.current) dialog.current.dataset.hidden = String(document.hidden);
@@ -97,28 +101,20 @@ export function WelcomeScene({
         (onEscape ?? onEnter)();
       }}
     >
-      {/* Separate fall/orbit transforms vary the swirl without per-frame React updates. */}
-      <div className="welcome-petals" aria-hidden="true">
+      {/* Translucent flakes share a wind field, never a looping CSS track. */}
+      <div ref={petals} className="welcome-petals" aria-hidden="true">
         {Array.from({ length: 18 }, (_, i) => (
           <i
             key={i}
             style={
               {
-                // Irrational steps avoid six repeating columns or synchronized rows.
-                left: `${3 + ((i * 0.61803398875) % 1) * 94}%`,
-                "--rest-height": `${5 + ((i * 0.41421356237) % 1) * 88}%`,
-                "--fall-duration": `${25 + ((i * 7.31) % 19)}s`,
-                "--fall-delay": `${-((i * 13.79) % 43)}s`,
-                "--orbit-duration": `${6 + ((i * 3.17) % 9)}s`,
-                "--orbit-width": `${24 + ((i * 17.39) % 72)}px`,
-                "--wind": `${(i % 2 ? -1 : 1) * (28 + ((i * 19.7) % 85))}px`,
-                "--tilt": `${-65 + ((i * 47.3) % 130)}deg`,
-                "--orbit-direction": i % 2 ? "reverse" : "normal",
-                "--leaf-size": `${17 + ((i * 7.13) % 15)}px`,
+                "--leaf-size": `${26 + windSeed(i) * 12}px`,
               } as CSSProperties
             }
           >
-            <span />
+            {/* Confirmed original welcome family (5b5a747/f6fb7c5): one thin
+                translucent CSS flake, not the rejected split/folded SVG. */}
+            <span className="welcome-flake" />
           </i>
         ))}
       </div>

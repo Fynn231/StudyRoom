@@ -1,43 +1,62 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decorationPose, DECORATION_COUNT } from "../src/naturalMotion.js";
+import { createWindField, stepWindField, windPose } from "../src/openScenery.js";
 
-test("normal field keeps balanced coverage without mirrored left/right choreography", () => {
-  const width = 1440,
-    height = 900,
-    time = 37.25;
-  let independent = 0;
-  for (let index = 0; index < DECORATION_COUNT; index += 2) {
-    const a = decorationPose(index, time, width, height, 130);
-    const b = decorationPose(index + 1, time, width, height, 130);
-    if (Math.abs(a.x + b.x + a.size - width) > 0.01 && Math.abs(a.y - b.y) > 0.01) independent++;
+test("wind has independent velocities, changing curl and no visible recycle jumps", () => {
+  for (const [w, h] of [
+    [1600, 1000],
+    [1366, 900],
+    [390, 667],
+  ]) {
+    const field = createWindField(48);
+    let rising = 0,
+      turns = 0;
+    for (let f = 0; f < 3600; f++) {
+      const before = field.bodies.map((b) => ({ ...b }));
+      const poses = field.bodies.map((_, i) => windPose(field, i, w, h));
+      stepWindField(field, 1 / 60, w, h);
+      field.bodies.forEach((b, i) => {
+        const a = before[i],
+          dx = Math.abs(b.x - a.x),
+          dy = Math.abs(b.y - a.y);
+        // Test the complete rotated responsive SVG envelope, not an arbitrary
+        // 80px reservoir. The 1-frame step must hide both sides of a recycle.
+        const size = (42 + (Math.floor(i / 2) % 4) * 7) * (w <= 600 ? 0.78 : w >= 1400 ? 1.5 : 1);
+        const radius = size * Math.SQRT1_2;
+        const shift = w >= 1400 ? (42 + (Math.floor(i / 2) % 4) * 7) * 0.25 : 0;
+        const outside = (v: number, limit: number) => v + radius < 0 || v - radius > limit;
+        // x is now a periodic wind coordinate projected into exposed sides.
+        // Its seam must be smooth ONSCREEN, not outside the virtual field.
+        const pose = windPose(field, i, w, h);
+        assert.ok(Math.abs(pose.x - poses[i].x) < 3, "no onscreen horizontal seam teleport");
+        if (dx <= 0.5) assert.ok(dx * w < 3, "smooth physical frame displacement");
+        if (dy > 0.5)
+          assert.ok(
+            outside(a.y * h - shift, h) && outside(b.y * h - shift, h),
+            "vertical recycling fully offscreen",
+          );
+        else assert.ok(dy * h < 3);
+        if (b.vy < 0) rising++;
+        if (a.vx * b.vx < 0) turns++;
+      });
+    }
+    assert.ok(rising > 100, "curl sometimes lifts, not constant fall");
+    assert.ok(turns > 10, "wind changes course, not a straight conveyor");
+    assert.ok(new Set(field.bodies.map((b) => b.vx.toFixed(5))).size >= 40);
   }
-  assert.ok(
-    independent >= 20,
-    "at least twenty left/right pairs must have independent wind and fall phases",
-  );
 });
 
-test("normal falling bodies have distinct descent rates and narrow-screen wind", () => {
-  for (const [width, height, gutter] of [
-    [1440, 900, 130],
-    [390, 844, 12],
-  ]) {
-    const cycle = height + 128;
-    const velocities = new Set<string>();
-    const horizontal = new Set<string>();
-    for (let index = 0; index < DECORATION_COUNT; index++) {
-      const a = decorationPose(index, 37.25, width, height, gutter);
-      const b = decorationPose(index, 37.5, width, height, gutter);
-      const descent = ((b.y - a.y + cycle) % cycle) / 0.25;
-      assert.ok(descent > 10 && descent < 35, "fall stays gentle and downward");
-      velocities.add(descent.toFixed(4));
-      horizontal.add((b.x - a.x).toFixed(4));
-    }
-    assert.ok(velocities.size >= 40, "bodies must not share one descent rate");
-    assert.ok(
-      horizontal.size >= 30,
-      "narrow screens must not collapse into straight vertical columns",
-    );
-  }
+test("stalls clamp integration and substeps keep refresh-rate results close", () => {
+  const a = createWindField(48),
+    b = createWindField(48),
+    c = createWindField(48);
+  stepWindField(a, 100, 1366, 900);
+  stepWindField(b, 0.05, 1366, 900);
+  assert.deepEqual(a, b);
+  for (let f = 0; f < 1200; f++) stepWindField(b, 1 / 60, 1366, 900);
+  stepWindField(c, 0.05, 1366, 900);
+  for (let f = 0; f < 2400; f++) stepWindField(c, 1 / 120, 1366, 900);
+  assert.ok(
+    b.bodies.every((p, i) => Math.hypot(p.x - c.bodies[i].x, p.y - c.bodies[i].y) < 0.0001),
+  );
 });
