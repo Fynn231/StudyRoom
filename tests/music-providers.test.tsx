@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { JSDOM } from 'jsdom';
 import { appleMusicLink, loadMusicPrefs, MUSIC_PREFS_KEY, sanitizePrefs, saveMusicPrefs } from '../src/musicPrefs.js';
-import { Music, featuredSpotify } from '../src/Music.js';
+import { Music } from '../src/Music.js';
+const selectedSpotify = 'https://open.spotify.com/track/0123456789ABCDEFGHIJKL';
 
 const ALBUM = 'https://music.apple.com/us/album/random-access-memories/617154241';
 
@@ -42,8 +43,8 @@ test('Apple album song query retains the song identity and rejects ambiguous ide
 });
 
 test('preferences drop unknown fields, secrets and invalid links', () => {
-  const clean = sanitizePrefs({ provider: 'apple', spotify: featuredSpotify, apple: ALBUM, token: 'secret', accessToken: 'x' });
-  assert.deepEqual(clean, { provider: 'apple', spotify: featuredSpotify, apple: 'https://embed.music.apple.com/us/album/random-access-memories/617154241' });
+  const clean = sanitizePrefs({ provider: 'apple', spotify: selectedSpotify, apple: ALBUM, token: 'secret', accessToken: 'x' });
+  assert.deepEqual(clean, { provider: 'apple', spotify: selectedSpotify, apple: 'https://embed.music.apple.com/us/album/random-access-memories/617154241' });
   assert.equal(JSON.stringify(clean).includes('secret'), false);
   assert.deepEqual(sanitizePrefs({ provider: 'nope', spotify: 'https://evil.test/x', apple: 'https://evil.test/y' }), { provider: 'silent', spotify: null, apple: null });
   assert.deepEqual(loadMusicPrefs(fakeStorage()), { provider: 'silent', spotify: null, apple: null });
@@ -51,8 +52,8 @@ test('preferences drop unknown fields, secrets and invalid links', () => {
 
 test('save then load preserves provider and links, and storage failures never throw', () => {
   const storage = fakeStorage();
-  assert.equal(saveMusicPrefs({ provider: 'spotify', spotify: featuredSpotify, apple: null }, storage), true);
-  assert.deepEqual(loadMusicPrefs(storage), { provider: 'spotify', spotify: featuredSpotify, apple: null });
+  assert.equal(saveMusicPrefs({ provider: 'spotify', spotify: selectedSpotify, apple: null }, storage), true);
+  assert.deepEqual(loadMusicPrefs(storage), { provider: 'spotify', spotify: selectedSpotify, apple: null });
   assert.equal(saveMusicPrefs({ provider: 'silent', spotify: null, apple: null }, storage), true);
   assert.equal(loadMusicPrefs(storage).provider, 'silent');
   const broken = { getItem() { throw Error('denied'); }, setItem() { throw Error('denied'); } };
@@ -89,11 +90,14 @@ test('Music switches Spotify / Apple Music / Silent without inventing an Apple t
   assert.match(q.getByRole('status').textContent!, /Silent focus selected/i);
   assert.match(dom.window.localStorage.getItem(MUSIC_PREFS_KEY)!, /"provider":"silent"/);
 
-  // Spotify remains the default provider and keeps the exact supplied track.
+  // Spotify has no default track; a deliberate selected link remains supported.
   rtl.fireEvent.click(q.getByLabelText('Spotify'));
   assert.equal(q.queryByRole('button', { name: 'Load selected Spotify player', hidden: true }), null, 'Apple selection must not leak into Spotify controls');
   assert.equal((q.getByLabelText('Spotify link') as HTMLInputElement).value, '', 'previous provider draft is cleared');
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Load featured Spotify player' }));
-  assert.equal(view.container.querySelector('iframe')!.src, `https://open.spotify.com/embed/track/2KpZZ1cyChx3REhma5nOv6?utm_source=generator`);
+  assert.equal(view.container.querySelector('iframe'), null);
+  rtl.fireEvent.change(q.getByLabelText('Spotify link'), {target:{value:selectedSpotify}});
+  rtl.fireEvent.click(q.getByRole('button', {name:'Select music link'}));
+  rtl.fireEvent.click(q.getByRole('button', { name: 'Load selected Spotify player' }));
+  assert.equal(view.container.querySelector('iframe')!.src, `https://open.spotify.com/embed/track/0123456789ABCDEFGHIJKL?utm_source=generator`);
   assert.equal(JSON.stringify(dom.window.localStorage.getItem(MUSIC_PREFS_KEY)).includes('token'), false);
 });

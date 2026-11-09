@@ -1,3 +1,4 @@
+import { holdSelectedProvider } from "./audioArbitration.js";
 import { usePrivateStorage } from "./privateStorage.js";
 import { useEffect, useId, useRef, useState } from "react";
 import { ConnectedMusic } from "./ConnectedMusic.js";
@@ -38,8 +39,6 @@ export function spotifyLink(input: string): string | null {
   }
 }
 
-export const featuredSpotify = "https://open.spotify.com/track/2KpZZ1cyChx3REhma5nOv6";
-
 type Loaded = { provider: "spotify" | "apple"; url: string } | null;
 const DEFAULT_PREFS: MusicPrefs = { provider: "spotify", spotify: null, apple: null };
 const load = (storage: Storage): MusicPrefs => {
@@ -65,12 +64,22 @@ export function Music({
   const [prefs, setPrefs] = useState<MusicPrefs>(() => load(storage));
   const [draft, setDraft] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState<Loaded>(null);
+  const [loaded, setLoadedState] = useState<Loaded>(null);
+  const selectedProvider = useRef<(() => void) | null>(null);
+  function setLoaded(next: Loaded) {
+    selectedProvider.current?.();
+    selectedProvider.current = next ? holdSelectedProvider() : null;
+    setLoadedState(next);
+  }
+  useEffect(
+    () => () => {
+      selectedProvider.current?.();
+    },
+    [],
+  );
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const previousActivation = useRef(0);
-  const autoFeatured = useRef(false);
-  const accountPlayback = useRef(false);
   const provider = prefs.provider;
   const saved = provider === "apple" ? prefs.apple : prefs.spotify;
 
@@ -79,21 +88,7 @@ export function Music({
     previousActivation.current = activation;
     if (activation <= 0) return;
     if (panel.current) panel.current.open = true;
-    if (provider === "silent" || loaded || accountPlayback.current) return;
-    if (provider === "apple" && prefs.apple) setLoaded({ provider: "apple", url: prefs.apple });
-    if (provider === "spotify") {
-      autoFeatured.current = !prefs.spotify;
-      setLoaded({ provider: "spotify", url: prefs.spotify ?? featuredSpotify });
-    }
-  }, [activation, provider, prefs.apple, prefs.spotify, loaded]);
-
-  // Leaving the secret mode unloads only the track it auto-loaded; explicit choices stay.
-  useEffect(() => {
-    if (!lockIn && loaded && autoFeatured.current) {
-      autoFeatured.current = false;
-      setLoaded(null);
-    }
-  }, [lockIn, loaded]);
+  }, [activation]);
 
   function chooseProvider(next: MusicProvider) {
     const value: MusicPrefs = { ...prefs, provider: next };
@@ -101,7 +96,6 @@ export function Music({
     setLoaded(null);
     setSelected(null);
     setDraft("");
-    autoFeatured.current = false;
     setError("");
     setMessage("");
     saveMusicPrefs(value, storage);
@@ -117,8 +111,7 @@ export function Music({
   }
 
   const active = loaded;
-  const link =
-    active?.url ?? selected ?? (lockIn && provider === "spotify" ? featuredSpotify : null);
+  const link = active?.url ?? selected;
   const playerTitle =
     active?.provider === "apple" ? "Official Apple Music player" : "Official Spotify music player";
 
@@ -157,15 +150,9 @@ export function Music({
           provider={provider}
           expanded={lockIn}
           embeddedActive={!!active}
-          selection={
-            selected ?? active?.url ?? saved ?? (provider === "spotify" ? featuredSpotify : null)
-          }
+          selection={selected ?? active?.url ?? saved}
           onEnable={() => {
-            accountPlayback.current = true;
             setLoaded(null);
-          }}
-          onDisable={() => {
-            accountPlayback.current = false;
           }}
         />
       )}
@@ -176,23 +163,9 @@ export function Music({
       )}
       {provider === "spotify" && (
         <>
-          {lockIn && (
-            <>
-              <p className="featured-track">ALTERED OBSIDIAN — AZALI</p>
-              <p className="quiet-note">
-                For full in-page playback, use the Spotify account player. The official embed may
-                offer a preview; Spotify controls its availability.
-              </p>
-            </>
-          )}
-          {(!active || active.provider !== "spotify" || active.url !== featuredSpotify) && (
-            <button
-              onClick={() => {
-                autoFeatured.current = false;
-                setLoaded({ provider: "spotify", url: featuredSpotify });
-              }}
-            >
-              Load featured Spotify player
+          {!active && !selected && !draft && prefs.spotify && (
+            <button onClick={() => setLoaded({ provider: "spotify", url: prefs.spotify! })}>
+              Load saved Spotify player
             </button>
           )}
           {active?.provider === "spotify" && (
@@ -278,7 +251,6 @@ export function Music({
                 <p>{selected}</p>
                 <button
                   onClick={() => {
-                    autoFeatured.current = false;
                     setLoaded({ provider: "spotify", url: selected });
                     setMessage("");
                   }}
@@ -330,7 +302,6 @@ export function Music({
               </a>
               <button
                 onClick={() => {
-                  autoFeatured.current = false;
                   setLoaded({ provider: "apple", url: saved });
                 }}
               >
@@ -399,7 +370,6 @@ export function Music({
                 <p>{selected}</p>
                 <button
                   onClick={() => {
-                    autoFeatured.current = false;
                     setLoaded({ provider: "apple", url: selected });
                     setMessage("");
                   }}

@@ -34,14 +34,15 @@ test('secret rejects repeat, composition, modifiers, text entry and interrupted 
   assert.equal(v.locked(),false);
 });
 
-test('deliberate keyboard reveal loads exact official player; explicit exit preserves draft and running clock', async t => {
+test('deliberate keyboard reveal never autoloads a provider; explicit exit preserves draft and running clock', async t => {
   const v = await setup(t);
   v.fireEvent.change(v.q.getByLabelText('Your session intention'),{target:{value:'Keep my work'}});
   v.fireEvent.click(v.q.getByRole('button',{name:'Start focus'}));
   for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'l'});
   assert.equal(v.locked(),true);
-  await v.waitFor(()=>assert.equal(v.container.querySelector('iframe')?.getAttribute('src'),'https://open.spotify.com/embed/track/2KpZZ1cyChx3REhma5nOv6?utm_source=generator'));
-  assert.ok(v.q.getByRole('link',{name:'Open in Spotify (new tab)'}));
+  assert.equal(v.container.querySelector('iframe'),null,'Lock In does not load a default or saved provider');
+  assert.equal(v.q.queryByRole('link',{name:'Open in Spotify (new tab)'}),null);
+  assert.doesNotMatch(v.container.textContent!,/AZALI|ALTERED OBSIDIAN|featured/i);
   v.fireEvent.click(v.q.getByRole('button',{name:'Exit Lock In Mode'}));
   assert.equal(v.locked(),false);
   assert.equal((v.q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'Keep my work');

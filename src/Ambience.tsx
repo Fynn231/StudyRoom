@@ -7,7 +7,7 @@ export function WelcomeSound({ room }: { room: RoomAmbience }) {
         {room.preference.muted ? "Unmute room audio" : "Mute room audio"}
       </button>
       <p role="status" className="quiet-note">
-        {roomAudioMessage(room.status, room.preference)}
+        {roomAudioMessage(room.status, room.preference, room.blocked)}
       </p>
     </div>
   );
@@ -28,7 +28,10 @@ export function Ambience({ room, onWelcome }: { room: RoomAmbience; onWelcome: (
         it.
       </p>
       <div className="ambience-actions">
-        <button onClick={room.play} disabled={room.status === "playing" && !preference.stopped}>
+        <button
+          onClick={room.play}
+          disabled={room.blocked || (room.status === "playing" && !preference.stopped)}
+        >
           Play room audio
         </button>
         <button onClick={room.stop} disabled={preference.stopped}>
@@ -69,7 +72,7 @@ export function Ambience({ room, onWelcome }: { room: RoomAmbience; onWelcome: (
         />
       </label>
       <p role="status" className="quiet-note">
-        {roomAudioMessage(room.status, preference)}
+        {roomAudioMessage(room.status, preference, room.blocked)}
       </p>
       {room.storageError && (
         <p role="status">Applied for this visit; device storage is unavailable.</p>

@@ -106,6 +106,13 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
   await consent.close();
   authorized = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(panel.getByRole("button", { name: "Play Spotify", exact: true })).toBeDisabled();
+  await page.getByText("Add a playlist or Spotify link", { exact: true }).click();
+  await page
+    .getByLabel("Spotify link", { exact: true })
+    .fill("https://open.spotify.com/track/0123456789ABCDEFGHIJKL");
+  await page.getByRole("button", { name: "Select music link", exact: true }).click();
+  await page.getByText("Add a playlist or Spotify link", { exact: true }).click();
   await expect(panel.getByRole("button", { name: "Play Spotify", exact: true })).toBeEnabled();
   await panel.getByRole("button", { name: "Play Spotify", exact: true }).click();
   await expect.poll(() => plays.length).toBe(1);

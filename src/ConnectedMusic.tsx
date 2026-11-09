@@ -1,3 +1,4 @@
+import { createOwnerPlaybackSignal } from "./audioArbitration.js";
 import { useAuthFetch } from "./auth.js";
 import { useEffect, useRef, useState } from "react";
 type Readiness = {
@@ -110,7 +111,10 @@ export function ConnectedMusic({
   const expiry = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const generation = useRef(0);
   const alive = useRef(true);
+  const playback = useRef<ReturnType<typeof createOwnerPlaybackSignal> | null>(null);
   function teardown() {
+    playback.current?.dispose();
+    playback.current = null;
     onDisable?.();
     generation.current++;
     clearTimeout(expiry.current);
@@ -297,6 +301,7 @@ export function ConnectedMusic({
         },
       });
       player.current = next;
+      playback.current = createOwnerPlaybackSignal();
       next.addListener("ready", ({ device_id }) => {
         if (current()) {
           setDevice(device_id);
@@ -313,6 +318,14 @@ export function ConnectedMusic({
       next.addListener("player_state_changed", (state) => {
         if (!current()) return;
         const item = state?.track_window?.current_track;
+        const valid =
+          item &&
+          typeof item.name === "string" &&
+          Number.isFinite(state.position) &&
+          Number.isFinite(state.duration) &&
+          state.duration > 0 &&
+          typeof state.paused === "boolean";
+        playback.current?.report(valid ? (state.paused ? "paused" : "playing") : "unknown");
         setTrack(
           item &&
             typeof item.name === "string" &&
@@ -334,7 +347,7 @@ export function ConnectedMusic({
             : null,
         );
         setMessage(
-          state
+          valid
             ? state.paused
               ? "Spotify device paused."
               : "Playing on this Spotify device."

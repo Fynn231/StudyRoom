@@ -1,3 +1,4 @@
+import { roomAudioBlocked, subscribeRoomAudioStop } from "./audioArbitration.js";
 import { useEffect, useRef, useState } from "react";
 import { createAmbience, ORIGINAL_SOUNDTRACK_TITLE, type AudioStatus } from "./ambienceAudio.js";
 import { usePrivateStorage } from "./privateStorage.js";
@@ -35,12 +36,17 @@ export function useRoomAmbience(locked: boolean) {
   const [preference, setPreference] = useState(() => readRoomAudioPreference(storage));
   const preferenceRef = useRef(preference);
   const [status, setStatus] = useState<AudioStatus>("idle");
+  const [blocked, setBlocked] = useState(roomAudioBlocked);
   const [storageError, setStorageError] = useState(false);
   const audio = useRef<ReturnType<typeof createAmbience> | null>(null);
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
   function getAudio() {
-    if (!audio.current) audio.current = createAmbience();
+    if (!audio.current) {
+      const controller = createAmbience();
+      controller.subscribe(() => setStatus(controller.getStatus()));
+      audio.current = controller;
+    }
     return audio.current;
   }
   function apply(next: RoomAudioPreference) {
@@ -64,6 +70,7 @@ export function useRoomAmbience(locked: boolean) {
   }
   // Called synchronously by Continue and trusted interaction; never awaited by entry/timer.
   function prepare() {
+    if (roomAudioBlocked()) return;
     const next = preferenceRef.current;
     if (!next.stopped && !next.muted && (next.volume > 0 || (next.rain && next.rainVolume > 0))) {
       const controller = apply(next);
@@ -74,8 +81,18 @@ export function useRoomAmbience(locked: boolean) {
     }
   }
   useEffect(() => {
-    const controller = apply(preferenceRef.current);
-    const unsubscribe = controller.subscribe(() => setStatus(controller.getStatus()));
+    apply(preferenceRef.current);
+    const suppress = () => {
+      setBlocked(roomAudioBlocked());
+      if (!roomAudioBlocked()) return;
+      // Dispose closes both soundtrack and rain immediately, including in-flight loads.
+      save({ ...preferenceRef.current, stopped: true });
+      audio.current?.dispose();
+      audio.current = null;
+      setStatus("idle");
+    };
+    const unsubscribe = subscribeRoomAudioStop(suppress);
+    if (roomAudioBlocked()) suppress();
     prepare();
     const gesture = (event: Event) => {
       if (event.isTrusted) prepare();
@@ -86,7 +103,7 @@ export function useRoomAmbience(locked: boolean) {
       document.removeEventListener("pointerdown", gesture, { capture: true });
       document.removeEventListener("keydown", gesture, { capture: true });
       unsubscribe();
-      controller.dispose();
+      audio.current?.dispose();
       audio.current = null;
     };
   }, []);
@@ -97,6 +114,7 @@ export function useRoomAmbience(locked: boolean) {
     preference,
     status,
     storageError,
+    blocked,
     prepare,
     change(next: Partial<RoomAudioPreference>) {
       save({ ...preferenceRef.current, ...next });
@@ -108,6 +126,7 @@ export function useRoomAmbience(locked: boolean) {
       if (!next.muted) prepare();
     },
     play() {
+      if (roomAudioBlocked()) return;
       const next = { ...preferenceRef.current, stopped: false };
       save(next);
       if (!next.muted) void apply(next).play();
@@ -119,7 +138,13 @@ export function useRoomAmbience(locked: boolean) {
   };
 }
 export type RoomAmbience = ReturnType<typeof useRoomAmbience>;
-export function roomAudioMessage(status: AudioStatus, preference: RoomAudioPreference) {
+export function roomAudioMessage(
+  status: AudioStatus,
+  preference: RoomAudioPreference,
+  blocked = false,
+) {
+  if (blocked)
+    return "Room audio stopped to avoid overlap. Pause Spotify or unload the selected provider, then press Play room audio. For listening status, refresh after pausing; reconnect first if disconnected. Playback is not automatically resumed.";
   if (preference.stopped) return "Room audio stopped. Press Play to start again.";
   if (preference.muted) return "Room audio muted.";
   if (status === "playing") return `${ORIGINAL_SOUNDTRACK_TITLE} is playing.`;

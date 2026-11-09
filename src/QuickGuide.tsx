@@ -165,7 +165,7 @@ export function QuickGuide({
               <button type="button" aria-pressed={room.preference.muted} onClick={room.toggleMute}>
                 {room.preference.muted ? "Unmute ambience" : "Mute ambience"}
               </button>
-              <small>{roomAudioMessage(room.status, room.preference)}</small>
+              <small>{roomAudioMessage(room.status, room.preference, room.blocked)}</small>
             </div>
           )}
           {section.actions.map(([label, selector]) => (

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { JSDOM } from "jsdom";
+import { useRoomAmbience } from "../src/useRoomAmbience.js";
 import { Music } from "../src/Music.js";
 
 test("synthetic SDK events, not connect or Play responses, determine playback; Silent tears down device", async (t) => {
@@ -80,8 +81,14 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
     globalThis.fetch = original;
     dom.window.close();
   });
-  const view = rtl.render(<Music />);
+  function Host() {
+    const room = useRoomAmbience(false);
+    return <><output data-testid="stopped">{String(room.preference.stopped)}</output><button onClick={room.play}>Play room</button><Music /></>;
+  }
+  const view = rtl.render(<Host />);
   const q = rtl.within(view.container);
+  rtl.fireEvent.change(q.getByLabelText("Spotify link"), {target:{value:"https://open.spotify.com/track/0123456789ABCDEFGHIJKL"}});
+  rtl.fireEvent.click(q.getByRole("button",{name:"Select music link",hidden:true}));
   rtl.fireEvent.click(
     q.getByRole("button", { name: "Refresh connection", hidden: true }),
   );
@@ -100,6 +107,9 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
     false,
   );
   await rtl.waitFor(() => assert.equal(played, true));
+  assert.equal(q.getByTestId("stopped").textContent, "false", "connecting and Play HTTP success do not confirm audio");
+  await rtl.act(async () => listeners.get("player_state_changed")!(null));
+  assert.equal(q.getByTestId("stopped").textContent, "false", "null SDK state is not playback");
   assert.equal(
     view.container.textContent!.includes("Playing on this Spotify device."),
     false,
@@ -120,6 +130,9 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
   assert.ok(
     view.container.textContent!.includes("Playing on this Spotify device."),
   );
+  assert.equal(q.getByTestId("stopped").textContent, "true", "confirmed owner SDK playback suppresses room audio");
+  rtl.fireEvent.click(q.getByText("Play room"));
+  assert.equal(q.getByTestId("stopped").textContent, "true");
   assert.ok(q.getByText("Synthetic study track"));
   rtl.fireEvent.change(q.getByLabelText("Track position"), {
     target: { value: "30000" },
@@ -131,7 +144,7 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
   assert.equal(volume, 0.25);
   rtl.fireEvent.click(
     q.getByRole("button", {
-      name: "Load featured Spotify player",
+      name: "Load selected Spotify player",
       hidden: true,
     }),
   );
@@ -142,6 +155,7 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
     ),
   );
   const beforeSilent = disconnected;
+  const obsoleteState = listeners.get("player_state_changed")!;
   const playlist = "https://open.spotify.com/playlist/37i9dQZF1DX8NTLI2TtZa6";
   rtl.fireEvent.change(q.getByLabelText("Spotify link"), {
     target: { value: playlist },
@@ -175,6 +189,10 @@ test("synthetic SDK events, not connect or Play responses, determine playback; S
     "Silent tears down an active SDK device",
   );
   assert.ok(paused > 0);
+  rtl.fireEvent.click(q.getByText("Play room"));
+  assert.equal(q.getByTestId("stopped").textContent, "false");
+  await rtl.act(async () => obsoleteState({paused:false,position:1,duration:1000,track_window:{current_track:{name:"Old account",artists:[]}}}));
+  assert.equal(q.getByTestId("stopped").textContent, "false", "old SDK generation cannot suppress audio");
   assert.equal(
     JSON.stringify(
       [...Array(dom.window.localStorage.length)].map((_, i) =>
@@ -234,9 +252,11 @@ test("account connection is explicit and fails closed without touching official 
     true,
   );
   assert.equal(document.querySelector('script[src*="sdk.scdn.co"]'), null);
+  rtl.fireEvent.change(q.getByLabelText("Spotify link"), {target:{value:"https://open.spotify.com/track/0123456789ABCDEFGHIJKL"}});
+  rtl.fireEvent.click(q.getByRole("button",{name:"Select music link",hidden:true}));
   rtl.fireEvent.click(
     q.getByRole("button", {
-      name: "Load featured Spotify player",
+      name: "Load selected Spotify player",
       hidden: true,
     }),
   );

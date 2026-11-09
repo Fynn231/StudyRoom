@@ -14,6 +14,12 @@ type Session = {
   used?: boolean;
   token?: string;
   scope?: string;
+  listening?: {
+    epoch: number;
+    legacyAllowed: boolean;
+    used: Set<string>;
+    active?: { consentId: string; target: string };
+  };
 };
 const scopes = "streaming user-read-email user-read-private user-modify-playback-state";
 const cookieName = "studyroom_music";
@@ -353,30 +359,103 @@ export function createMusicHandler(
           send(405, { error: "Wrong method." });
           return;
         }
+        const activeSession = session;
+        const consent = (activeSession.listening ??= {
+          epoch: 0,
+          legacyAllowed: true,
+          used: new Set<string>(),
+        });
+        // Capture before reading the body: even that await can cross a hide.
+        let publicationEpoch = consent.epoch;
+        let consentId: string | undefined;
         let target: { roomCode: string; participantId: string } | undefined;
+        let targetKey = "";
         if (share || hide) {
           const value = await readBody(req);
+          const keys = value && Object.keys(value).sort().join("|");
+          const modern =
+            keys ===
+            (hide ? "consentId|participantId|roomCode" : "consentId|participantId|roomCode|start");
           if (
             !identity ||
-            !session.owner ||
+            !activeSession.owner ||
             !value ||
-            Object.keys(value).sort().join("|") !== "participantId|roomCode" ||
+            (keys !== "participantId|roomCode" && !modern) ||
             typeof value.roomCode !== "string" ||
             !/^[A-Z0-9]{6}$/.test(value.roomCode) ||
             typeof value.participantId !== "string" ||
             !value.participantId ||
-            value.participantId.length > 64
+            value.participantId.length > 64 ||
+            (modern &&
+              (typeof value.consentId !== "string" ||
+                !/^[a-zA-Z0-9_-]{16,80}$/.test(value.consentId) ||
+                (!hide && typeof value.start !== "boolean")))
           ) {
             send(400, { error: "Choose your current room presence." });
             return;
           }
-          target = value;
+          if (sessions.get(id) !== activeSession || activeSession.until <= now()) {
+            send(401, { error: "Spotify connection changed. Reconnect." });
+            return;
+          }
+          target = { roomCode: value.roomCode, participantId: value.participantId };
+          targetKey = JSON.stringify([target.roomCode, target.participantId]);
+          consentId = modern ? value.consentId : undefined;
+          if (hide) {
+            // A hide can arrive before its pending start. Remember the revoked
+            // ID so a delayed start cannot manufacture a fresh consent lifetime.
+            if (consentId && consent.used.size < 128) consent.used.add(consentId);
+            // An ID-specific hide revokes only that choice. Do not invalidate a
+            // newer choice that is awaiting its body or upstream response.
+            if (!consentId) consent.epoch++;
+            consent.legacyAllowed = false;
+            const newerSameTarget =
+              consent.active?.target === targetKey &&
+              !!consentId &&
+              consent.active.consentId !== consentId;
+            if (
+              !consentId ||
+              (consent.active?.consentId === consentId && consent.active?.target === targetKey)
+            )
+              consent.active = undefined;
+            if (!newerSameTarget) deps.onListening?.(activeSession.owner!, null, target);
+            send(200, { hidden: true });
+            return;
+          }
+          if (consent.epoch !== publicationEpoch) {
+            send(409, { error: "Sharing choice changed; choose Share again." });
+            return;
+          }
+          if (modern) {
+            consent.legacyAllowed = false;
+            const matches =
+              consent.active?.consentId === consentId && consent.active?.target === targetKey;
+            if (value.start && !consent.used.has(consentId!)) {
+              if (consent.used.size >= 128) {
+                send(429, { error: "Reconnect before starting another sharing session." });
+                return;
+              }
+              consent.used.add(consentId!);
+              consent.epoch++;
+              consent.active = { consentId: consentId!, target: targetKey };
+            } else if (!matches) {
+              send(409, { error: "Sharing consent expired; choose Share again." });
+              return;
+            }
+          } else if (!consent.legacyAllowed) {
+            send(409, { error: "Reload Study Room before choosing Share again." });
+            return;
+          }
+          publicationEpoch = consent.epoch;
         }
-        if (hide) {
-          deps.onListening?.(session.owner!, null, target);
-          send(200, { hidden: true });
-          return;
-        }
+        const canPublish = () =>
+          !share ||
+          (sessions.get(id) === activeSession &&
+            activeSession.until > now() &&
+            consent.epoch === publicationEpoch &&
+            (consentId
+              ? consent.active?.consentId === consentId && consent.active?.target === targetKey
+              : consent.legacyAllowed));
         if (!(session.scope ?? scopes).split(" ").includes("user-read-currently-playing")) {
           send(403, { error: "Connect listening status and grant current-track permission." });
           return;
@@ -386,6 +465,11 @@ export function createMusicHandler(
           signal: AbortSignal.timeout(10000),
           headers: { Authorization: `Bearer ${session.token}` },
         });
+        if (!canPublish()) {
+          await response.body?.cancel();
+          send(409, { error: "Sharing stopped or the connection changed." });
+          return;
+        }
         if (response.status === 204) {
           if (share) deps.onListening?.(session.owner!, null, target);
           send(200, { track: null });
@@ -454,6 +538,10 @@ export function createMusicHandler(
           observedAt: now(),
           playing: value.is_playing,
         };
+        if (!canPublish()) {
+          send(409, { error: "Sharing stopped or the connection changed." });
+          return;
+        }
         if (share) deps.onListening?.(session.owner!, track, target);
         send(200, { track });
         return;
