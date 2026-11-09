@@ -169,7 +169,8 @@ for (const [name, width, height] of [
       (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
         .violations,
     ).toEqual([]);
-    await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+    await page.locator("button.wordmark").focus();
+    for (let i = 0; i < 5; i++) await page.keyboard.press("n");
     await expect(page.locator(".lock-in-mode")).toHaveCount(0);
     await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
       "One quiet chapter",

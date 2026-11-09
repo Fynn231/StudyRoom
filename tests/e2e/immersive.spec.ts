@@ -48,14 +48,11 @@ for (const width of [1440, 390])
       "Synthetic transition continuity",
     );
     await page.screenshot({ path: info.outputPath(`locked-${width}.png`) });
-    const normalReturn = page.getByRole("button", { name: "Return to normal mode", exact: true });
-    await expect(normalReturn).toHaveText("N");
-    const returnBox = await normalReturn.boundingBox();
-    expect(returnBox!.width).toBeGreaterThanOrEqual(44);
-    expect(returnBox!.height).toBeGreaterThanOrEqual(44);
-    await normalReturn.focus();
-    await page.keyboard.press("Enter");
-    await expect(normalReturn).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Return to normal mode", exact: true }),
+    ).toHaveCount(0);
+    await page.locator("#main").focus();
+    for (let i = 0; i < 5; i++) await page.keyboard.press("n");
     await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
       "Synthetic transition continuity",
     );
@@ -112,7 +109,8 @@ for (const width of [1440, 390])
       .getByRole("button", { name: "study room", exact: true })
       .click({ clickCount: 5, delay: 30 });
     await expect(page.locator(".lock-in-mode")).toBeVisible();
-    await page.getByRole("button", { name: "Return to normal mode", exact: true }).click();
+    await page.locator("#main").focus();
+    for (let i = 0; i < 5; i++) await page.keyboard.press("n");
     await expect(page.locator(".lock-in-mode")).toHaveCount(0);
     await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
       "Reduced-motion return continuity",

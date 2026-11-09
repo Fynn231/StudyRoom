@@ -40,14 +40,14 @@ test('locked mode centralizes title, brand, headings, controls and panel names',
   const summaries = [...v.container.querySelectorAll('summary')].map(s => s.textContent);
   for (const label of ['Protocol brief', 'Atmosphere', 'Soundtrack', 'Protect your focus', 'Intel / notes', 'Archived missions']) assert.ok(summaries.includes(label), label);
   assert.ok(summaries.includes('Exit Lock In Mode') === false, 'exit is a button, not a summary');
-  assert.ok(v.q.getByRole('button', { name: 'Exit Lock In Mode' }));
+  assert.equal(v.q.queryByRole('button', { name: 'Exit Lock In Mode' }), null, 'desktop exit uses five N or Escape');
 });
 
 test('leaving locked mode restores the normal language and title', async t => {
   const v = await setup(t);
   for (let i = 0; i < 5; i++) v.fireEvent.keyDown(v.dom.window.document, { key: 'l' });
   assert.equal(v.dom.window.document.title, 'LOCKED IN — focus protocol');
-  v.fireEvent.click(v.q.getByRole('button', { name: 'Exit Lock In Mode' }));
+  for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.dom.window.document.title, 'Study Room — focus together');
   assert.equal(v.container.querySelector('h1')!.textContent, 'One thing at a time.');
   assert.equal(v.q.getByRole('button', { name: 'Start focus' }).textContent, 'Start focus');

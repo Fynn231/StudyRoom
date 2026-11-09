@@ -148,6 +148,17 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
   const roomAmbience = useRoomAmbience(lockIn);
   const lockInTouched = useRef(false);
   const brandPresses = useRef<number[]>([]);
+  const [touchModes, setTouchModes] = useState(
+    () => window.matchMedia?.("(any-pointer: coarse)").matches ?? false,
+  );
+  useEffect(() => {
+    const query = window.matchMedia?.("(any-pointer: coarse)");
+    if (!query) return;
+    const sync = () => setTouchModes(query.matches);
+    sync();
+    query.addEventListener?.("change", sync);
+    return () => query.removeEventListener?.("change", sync);
+  }, []);
   const modeTransition = useRef<ViewTransition | null>(null),
     modeEpoch = useRef(0);
   useEffect(
@@ -212,7 +223,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
     }
   }, [lockIn]);
   useEffect(() => {
-    // Hidden activation: five quick "L" presses outside a text field toggle the mode; Escape leaves it.
+    // Symmetric hidden gestures: five L enters, five N leaves; Escape is an emergency exit.
     let presses: number[] = [];
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && lockIn) {
@@ -236,7 +247,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
         e.ctrlKey ||
         e.altKey ||
         e.shiftKey ||
-        e.key.toLowerCase() !== "l"
+        e.key.toLowerCase() !== (lockIn ? "n" : "l")
       ) {
         presses = [];
         return;
@@ -349,7 +360,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
         "Last timer restored paused. No study time was credited while you were away.",
       );
     }
-    closeWelcome(false);
+    closeWelcome(true);
     if (resumeFromPriorVisit.current) window.dispatchEvent(new Event("studyroom:resume-last-plan"));
     resumeFromPriorVisit.current = false;
   }
@@ -715,14 +726,13 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
               <button className="home-link" onClick={showHome}>
                 Home
               </button>
-              {lockIn && (
+              {touchModes && (
                 <button
-                  className="home-link normal-return"
-                  aria-label="Return to normal mode"
-                  title="Return to normal mode"
-                  onClick={exitLockIn}
+                  className="home-link touch-mode-switch"
+                  aria-label={lockIn ? "Switch to normal mode" : "Switch to locked in mode"}
+                  onClick={lockIn ? exitLockIn : revealLockIn}
                 >
-                  N
+                  Mode
                 </button>
               )}
             </div>
@@ -841,7 +851,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
                   <p className="eyebrow">LOCKED IN</p>
                   <strong>Nothing else, for now.</strong>
                 </div>
-                <button onClick={exitLockIn}>Exit Lock In Mode</button>
+                <span className="quiet-note">Five N presses or Escape returns to normal.</span>
               </aside>
             )}
             {new URL(window.location.href).searchParams.has("room") && !invited && (

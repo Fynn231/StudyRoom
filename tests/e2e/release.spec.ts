@@ -142,7 +142,8 @@ for (const [name, width, height] of [
         .locator(".locked-atmosphere *")
         .evaluateAll((es) => es.every((e) => getComputedStyle(e).animationName === "none")),
     ).toBe(true);
-    await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+    await page.locator("button.wordmark").focus();
+    for (let i = 0; i < 5; i++) await page.keyboard.press("n");
     await expect(page.locator(".lock-in-mode")).toHaveCount(0);
     await expect(
       plan.getByRole("checkbox", { name: "Write one question", exact: true }),
@@ -251,7 +252,9 @@ test("motion: all bounded bodies move; stars stay fixed; reduced/off/hidden and 
   for (let n = 0; n < 4; n++) {
     await lock(page);
     await expect(page.locator(".natural-flowers")).toHaveAttribute("data-running", "false");
-    await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+    await page.locator("button.wordmark").focus();
+    for (let i = 0; i < 5; i++) await page.keyboard.press("n");
+    await expect(page.locator(".lock-in-mode")).toHaveCount(0);
     await expect(page.locator(".natural-flowers")).toHaveAttribute("data-running", "true");
   }
   await expect(page.locator(".flower")).toHaveCount(64);
@@ -396,7 +399,9 @@ test("music and AI: honest unavailable states, manual provider controls, pasted 
   await plan.getByRole("checkbox", { name: "Read one page", exact: true }).check();
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
   await lock(page);
-  await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+  await page.locator("button.wordmark").focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("n");
+  await expect(page.locator(".lock-in-mode")).toHaveCount(0);
   await expect(plan.getByRole("checkbox", { name: "Read one page", exact: true })).toBeChecked();
   await expect(page.getByLabel("Enable focus chime", { exact: true })).not.toBeChecked();
 });

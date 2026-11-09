@@ -205,8 +205,9 @@ export function Music({
           )}
           {lockIn && (
             <p className="quiet-note">
-              Esc steps out when this page has focus; Exit Lock In Mode also works after focusing
-              Spotify. Reload restores the theme only, not the player.
+              Focus this page outside the Spotify player, then press N five times or Escape to
+              return to normal. On touch devices, use Mode. Reload restores the theme only, not the
+              player.
             </p>
           )}
           <details className="music-custom">

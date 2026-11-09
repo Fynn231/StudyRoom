@@ -43,11 +43,26 @@ test('deliberate keyboard reveal never autoloads a provider; explicit exit prese
   assert.equal(v.container.querySelector('iframe'),null,'Lock In does not load a default or saved provider');
   assert.equal(v.q.queryByRole('link',{name:'Open in Spotify (new tab)'}),null);
   assert.doesNotMatch(v.container.textContent!,/AZALI|ALTERED OBSIDIAN|featured/i);
-  v.fireEvent.click(v.q.getByRole('button',{name:'Exit Lock In Mode'}));
+  for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.locked(),false);
   assert.equal((v.q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'Keep my work');
   assert.ok(v.container.querySelector('[data-action="pause"]'),'running control remains available under locked copy');
   assert.equal(v.container.querySelector('iframe'),null);
+});
+
+test('locked player instructions describe the real keyboard return, not a retired button', async t => {
+  const v=await setup(t,'1');
+  const text=v.container.querySelector('.music-panel')!.textContent!;
+  assert.doesNotMatch(text,/Exit Lock In Mode/);
+  assert.match(text,/N five times/);
+});
+
+test('five N exits only locked mode; L never exits and N never enters', async t => {
+  const v=await setup(t);
+  for(const key of ['n','l','l','n']) {
+    for(let i=0;i<5;i++)v.fireEvent.keyDown(v.dom.window.document,{key});
+    assert.equal(v.locked(),key==='l','L enters only, N exits only');
+  }
 });
 
 test('five wordmark taps reveal without navigation; Escape exits', async t => {
@@ -64,7 +79,7 @@ test('StrictMode restores deliberate preference without contacting Spotify; stor
   assert.equal(v.locked(),true);
   assert.equal(v.dom.window.sessionStorage.getItem('studyroom.lockIn'),'1');
   assert.equal(v.container.querySelector('iframe'),null,'reload is not fresh provider consent');
-  v.fireEvent.click(v.q.getByRole('button',{name:'Exit Lock In Mode'}));
+  for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.dom.window.sessionStorage.getItem('studyroom.lockIn'),'0');
 });
 
@@ -72,6 +87,26 @@ test('unavailable session storage does not block activation or exit', async t =>
   const v=await setup(t,undefined,true);
   for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'l'});
   assert.equal(v.locked(),true);
-  v.fireEvent.click(v.q.getByRole('button',{name:'Exit Lock In Mode'}));
+  for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.locked(),false);
+});
+
+test('five N has the same timing and editing safeguards as five L', async t => {
+ const v=await setup(t,'1');
+ for(const flags of [{repeat:true},{isComposing:true},{keyCode:229},{ctrlKey:true},{altKey:true},{metaKey:true},{shiftKey:true}]) {
+  for(let i=0;i<5;i++)v.fireEvent.keyDown(v.dom.window.document,{key:'n',...flags});
+  assert.equal(v.locked(),true);
+ }
+ for(let i=0;i<5;i++)v.fireEvent.keyDown(v.q.getByLabelText('Primary objective'),{key:'n'});
+ assert.equal(v.locked(),true);
+ for(const key of ['n','n','x','n','n','n'])v.fireEvent.keyDown(v.dom.window.document,{key});
+ assert.equal(v.locked(),true);
+ v.fireEvent.keyDown(v.dom.window.document,{key:'x'});
+ for(let i=0;i<4;i++)v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
+ assert.equal(v.locked(),true);
+ await v.act(async () => { await new Promise(resolve=>setTimeout(resolve,2050)); });
+ v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
+ assert.equal(v.locked(),true,'expired presses cannot finish the gesture');
+ for(let i=0;i<4;i++)v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
+ assert.equal(v.locked(),false);
 });

@@ -468,7 +468,8 @@
   min-height: 44px;
   padding: 8px 14px;
 }
-.quick-guide [aria-selected="true"] {
+.quick-guide [role="tab"][aria-selected="true"],
+.quick-guide [role="tab"][aria-selected="true"]:hover:not(:disabled) {
   background: var(--ink);
   color: var(--paper);
 }
@@ -484,6 +485,7 @@
 }
 .quick-guide-actions {
   display: flex;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px;
 }

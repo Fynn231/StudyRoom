@@ -42,6 +42,8 @@
   line-height: 1.6;
 }
 .quick-ambience {
+  flex-basis: 100%;
+  min-width: 0;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -53,6 +55,14 @@
   align-items: center;
   min-height: 44px;
   gap: 8px;
+}
+.quick-ambience input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
 }
 .quick-ambience small {
   flex-basis: 100%;

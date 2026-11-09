@@ -91,7 +91,9 @@ test("owner Spotify playback closes actual soundtrack and rain; trusted gestures
   await expect(page.locator(".lock-in-mode")).toHaveCount(1);
   await expect(page.locator("iframe")).toHaveCount(0);
   await expect(page.locator(".music-panel")).not.toContainText(/AZALI|featured|ALTERED OBSIDIAN/i);
-  await page.getByRole("button", { name: "Exit Lock In Mode", exact: true }).click();
+  await page.locator("button.wordmark").focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("n");
+  await expect(page.locator(".lock-in-mode")).toHaveCount(0);
   await page.getByRole("tab", { name: "Focus", exact: true }).click();
   await page.getByRole("button", { name: "Focus options", exact: true }).click();
   await page.getByRole("button", { name: "Enter focus view", exact: true }).click();

@@ -28,5 +28,5 @@ test('hosted Plan session and Define protocol each send one explicit AI request;
  rtl.fireEvent.click(q.getByRole('button',{name:'Home'}));assert.ok(q.getByRole('button',{name:'Continue last session'}));assert.equal(requests.length,1,'Home never sends AI');rtl.fireEvent.click(q.getByRole('button',{name:/^Continue (?:to Study Room|last session)$/}));assert.equal(q.getByLabelText('Your session intention'),draft);assert.equal(q.getByRole('timer'),timer);assert.equal((q.getByRole('checkbox',{name:'Explain one idea'}) as HTMLInputElement).checked,true);
  for(let i=0;i<5;i++)rtl.fireEvent.click(q.getByRole('button',{name:'study room'}));
  assert.equal(requests.length,1,'theme changes never send AI');limited=true;rtl.fireEvent.click(q.getByRole('button',{name:'Define protocol'}));await rtl.waitFor(()=>assert.match(q.getByRole('alert').textContent??'',/rate-limited/));assert.equal(requests.length,2);assert.equal((q.getByRole('checkbox',{name:'Explain one idea'}) as HTMLInputElement).checked,true,'failed direct planning retains progress');
- rtl.fireEvent.click(q.getByRole('button',{name:'Exit Lock In Mode'}));assert.equal(requests.length,2);assert.equal(q.getByRole('timer').textContent,'25:00');
+ for(let i=0;i<5;i++) rtl.fireEvent.keyDown(dom.window.document,{key:'n'});assert.equal(requests.length,2);assert.equal(q.getByRole('timer').textContent,'25:00');
 });

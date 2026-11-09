@@ -51,7 +51,7 @@ test('all twelve approved choices mount only their distinct bounded effect witho
     assert.equal(v.container.querySelector('iframe'), null, 'changing palettes never contacts a provider');
   }
   assert.equal(signatures.size, 12);
-  v.fireEvent.click(v.q.getByRole('button', { name: 'Exit Lock In Mode' }));
+  for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.container.querySelector('.locked-atmosphere'), null);
   assert.equal(v.q.queryByRole('group', { name: 'LOCKED IN atmospheres' }), null);
   for (let i = 0; i < 5; i++) v.fireEvent.keyDown(v.dom.window.document, { key: 'l' });
