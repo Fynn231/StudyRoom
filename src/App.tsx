@@ -43,6 +43,7 @@ function countSelectedPlanSteps(plan: { steps: { done: boolean }[] } | null): {
 import { createFocusChime } from "./sound.js";
 import { Appearance, type FlowerEffect } from "./Appearance.js";
 import { Flowers } from "./Flowers.js";
+import { WaterRipples } from "./WaterRipples.js";
 import { CompletedSessions } from "./CompletedSessions.js";
 import { NormalGradient } from "./NormalGradient.js";
 import {
@@ -711,9 +712,14 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
         {motionPalette && (
           <NormalGradient colors={motionPalette} suspended={lockIn || welcomeOpen} />
         )}
-        {flowerEffect !== "none" && (
+        {flowerEffect === "water-ripples" || flowerEffect === "water-static" ? (
+          <WaterRipples
+            moving={flowerEffect === "water-ripples"}
+            suspended={lockIn || welcomeOpen}
+          />
+        ) : flowerEffect !== "none" ? (
           <Flowers effect={flowerEffect} suspended={lockIn || welcomeOpen} />
-        )}
+        ) : null}
         <div className="app-shell" inert={completion || welcomeOpen ? true : undefined}>
           <header className="masthead">
             <div className="brand-nav">

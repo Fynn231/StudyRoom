@@ -8,6 +8,7 @@ import "./styles.css";
 import "./lock-in-mode.css";
 import "./locked-atmospheres.css";
 import "./normal-atmosphere.css";
+import "./water-ripples.css";
 import "./workspace.css";
 import "./immersive.css";
 

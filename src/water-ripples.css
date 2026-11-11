@@ -1,0 +1,52 @@
+/* Original fine refractive wavefronts: dark trough, silver crest, broken glints.
+   Only these bounded SVGs move; reading surfaces and the page stay stationary. */
+.water-ripples {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  contain: strict;
+}
+.water-wave {
+  position: absolute;
+  overflow: visible;
+  fill: none;
+  transform-origin: center;
+}
+.water-wave ellipse,
+.water-wave path {
+  vector-effect: non-scaling-stroke;
+}
+.water-trough {
+  stroke: #1c365b;
+  stroke-width: 2.2;
+  opacity: 0.36;
+}
+.water-crest {
+  stroke: #e2f4ff;
+  stroke-width: 1.2;
+  opacity: 0.85;
+}
+.water-glint {
+  stroke: #f4fbff;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  opacity: 0.74;
+}
+.water-inner {
+  stroke: #8cb8d5;
+  stroke-width: 0.7;
+  opacity: 0.4;
+}
+.water-ripples[data-running="true"] .water-wave {
+  will-change: transform, opacity;
+}
+.lock-in-mode .water-ripples {
+  display: none;
+}
+@media (max-width: 600px) {
+  .water-wave {
+    max-width: 105vw;
+  }
+}

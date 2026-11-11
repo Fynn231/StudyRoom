@@ -22,9 +22,12 @@ export type FlowerEffect =
   | "moon-static"
   | "moon-falling"
   | "leaves-static"
-  | "leaves-falling";
+  | "leaves-falling"
+  | "water-static"
+  | "water-ripples";
 const EFFECT_THEMES: Record<string, { still: FlowerEffect; moving: FlowerEffect; label: string }> =
   {
+    "Blue Hour": { still: "water-static", moving: "water-ripples", label: "Water ripples" },
     Juliette: { still: "static", moving: "falling", label: "Falling flowers" },
     "Moon Garden": { still: "moon-static", moving: "moon-falling", label: "Drifting moonlight" },
     "Autumn Letters": { still: "leaves-static", moving: "leaves-falling", label: "Falling leaves" },
