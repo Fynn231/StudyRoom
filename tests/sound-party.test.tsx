@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -26,20 +27,20 @@ for (const scenario of ['success', 'rejected', 'late ack after preview']) test(`
   });
   t.after(async () => { cleanup(); await new Promise<void>(r => io.close(() => r())); dom.window.close(); });
   const view = render(<App endpoint={`http://127.0.0.1:${(http.address() as any).port}`} />), q = within(view.container);
-  fireEvent.click(q.getByRole('button', { name: 'Party' }));
-  await waitFor(() => assert.equal((q.getByRole('button', { name: 'Create room' }) as HTMLButtonElement).disabled, false));
+  fireEvent.click((visitWorkspace(q, "together"), q.getByRole('button', { name: 'Party' })));
+  await waitFor(() => assert.equal(((visitWorkspace(q, "together"), q.getByRole('button', { name: 'Create room' })) as HTMLButtonElement).disabled, false));
   fireEvent.change(q.getByLabelText('Your name'), { target: { value: 'Fixture' } });
-  fireEvent.click(q.getByRole('button', { name: 'Create room' }));
+  fireEvent.click((visitWorkspace(q, "together"), q.getByRole('button', { name: 'Create room' })));
   await waitFor(() => assert.equal(q.getByLabelText('Room code').textContent, 'ABC123'));
-  fireEvent.click(q.getByRole('button', { name: 'Start focus' })); assert.equal(tones, 0);
-  fireEvent.click(q.getByRole('button', { name: 'Join room cycle' }));
+  fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Start focus' }))); assert.equal(tones, 0);
+  fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Join room cycle' })));
   await React.act(async () => { io.emit('room:state', { ...state, timer: { ...state.timer, endsAt: Date.now() + 1500000 } }); await new Promise(r => setTimeout(r, 30)); });
   assert.equal(tones, 0, 'remote start silent');
   await React.act(async () => { io.emit('room:state', state); await new Promise(r => setTimeout(r, 30)); });
-  fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
+  fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Start focus' })));
   await waitFor(() => assert.equal(typeof ack, 'function'));
   assert.equal(tones, 0, 'no sound before successful ack');
-  if (scenario === 'late ack after preview') await React.act(async () => fireEvent.click(q.getByRole('button', { name: 'Preview chime' })));
+  if (scenario === 'late ack after preview') await React.act(async () => fireEvent.click((visitWorkspace(q, "music"), q.getByRole('button', { name: 'Preview chime' }))));
   await React.act(async () => { ack(scenario === 'rejected' ? { ok: false, error: 'Fixture denied' } : { ok: true, state: { ...state, timer: { ...state.timer, endsAt: Date.now() + 1500000 } }, selfId: 'fixture' }); await new Promise(r => setTimeout(r, 30)); });
   assert.equal(tones, scenario === 'rejected' ? 0 : 3, 'only own accepted start or explicit preview, no stale duplicate');
   if (scenario === 'success') {

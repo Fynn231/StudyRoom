@@ -1,4 +1,5 @@
 import { test, expect, chromium } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 import { resolve } from "node:path";
 import { createServer } from "node:http";
 async function enter(page: any) {
@@ -13,12 +14,15 @@ test("returning home restores a paused checkpoint; focus view is reversible and 
   page,
 }, info) => {
   await enter(page);
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
   await page.waitForTimeout(1100);
   await page.getByRole("button", { name: "Pause focus", exact: true }).click();
   const before = await page.getByRole("timer").innerText();
-  await page.reload();
+  // Workspace links now retain ?view=study; revisit the root to exercise returning Home.
+  await page.goto("/");
   await expect(
     page.getByRole("heading", {
       name: "Welcome back to your study room.",
@@ -59,6 +63,7 @@ test("profiles are private until shared, scoped to room, editable without leakin
     const p = await a.newPage(),
       q = await b.newPage();
     await enter(p);
+    await visitWorkspace(p, "Together");
     await p.getByRole("button", { name: "Party", exact: true }).click();
     await p.getByLabel("Your name", { exact: true }).fill("Cedar");
     await p.getByRole("button", { name: "Create room", exact: true }).click();
@@ -70,6 +75,7 @@ test("profiles are private until shared, scoped to room, editable without leakin
     await expect(q.getByRole("region", { name: "What everyone is listening to" })).toContainText(
       "No listening status shared yet.",
     );
+    await visitWorkspace(p, "Music");
     await p
       .locator("summary")
       .filter({ hasText: /^Your Spotify listening status$/ })
@@ -284,7 +290,9 @@ test("closing untouched tabs preserves the prior checkpoint; active reset still 
 }) => {
   const first = await context.newPage();
   await enter(first);
+  await visitWorkspace(first, "Music");
   await first.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(first, "Study");
   await first.getByLabel("Focus length", { exact: true }).fill("12");
   await first.getByRole("button", { name: "Start focus", exact: true }).click();
   await first.getByRole("button", { name: "Pause focus", exact: true }).click();

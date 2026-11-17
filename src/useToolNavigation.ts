@@ -1,11 +1,25 @@
 import { useEffect, useRef } from "react";
 
-// One cancellable navigation owner: opening a panel never races later input.
+// All mounted callers share one in-flight destination.
+let cancelActiveNavigation: (() => void) | undefined;
+function cancelNavigation() {
+  cancelActiveNavigation?.();
+}
+
+// History cancels in capture phase, before a workspace owner schedules its destination.
 export function useToolNavigation() {
   const cleanup = useRef<() => void>(() => {});
-  useEffect(() => () => cleanup.current(), []);
+  useEffect(() => {
+    window.addEventListener("popstate", cancelNavigation, true);
+    return () => {
+      window.removeEventListener("popstate", cancelNavigation, true);
+      cleanup.current();
+    };
+  }, []);
   return (selector: string) => {
+    cancelNavigation();
     cleanup.current();
+    window.dispatchEvent(new window.CustomEvent("studyroom:reveal-tool", { detail: selector }));
     const target = document.querySelector<HTMLElement>(selector);
     if (!target) return;
     const ancestors: HTMLDetailsElement[] = [];
@@ -24,6 +38,7 @@ export function useToolNavigation() {
     const cancel = () => {
       if (cancelled) return;
       cancelled = true;
+      if (cancelActiveNavigation === cancel) cancelActiveNavigation = undefined;
       window.cancelAnimationFrame?.(frame);
       events.forEach((event) => document.removeEventListener(event, cancel, true));
       if (scrolling) {
@@ -33,8 +48,13 @@ export function useToolNavigation() {
       }
     };
     cleanup.current = cancel;
+    cancelActiveNavigation = cancel;
     const finish = () => {
-      if (cancelled || !focus.isConnected || document.hidden) return;
+      if (cancelled) return;
+      if (!focus.isConnected || document.hidden) {
+        cancel();
+        return;
+      }
       cancel();
       if (!focus.matches("input,textarea,select,button,a[href],summary,[tabindex]"))
         focus.tabIndex = -1;

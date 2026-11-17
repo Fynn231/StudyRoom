@@ -1,3 +1,4 @@
+import { assertWorkspaceView, visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -37,12 +38,15 @@ test('secret rejects repeat, composition, modifiers, text entry and interrupted 
 test('deliberate keyboard reveal never autoloads a provider; explicit exit preserves draft and running clock', async t => {
   const v = await setup(t);
   v.fireEvent.change(v.q.getByLabelText('Your session intention'),{target:{value:'Keep my work'}});
-  v.fireEvent.click(v.q.getByRole('button',{name:'Start focus'}));
+  v.fireEvent.click((visitWorkspace(v.q, "study"), v.q.getByRole('button',{name:'Start focus'})));
   for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'l'});
   assert.equal(v.locked(),true);
   assert.equal(v.container.querySelector('iframe'),null,'Lock In does not load a default or saved provider');
+  visitWorkspace(v.q, "music");
+  assertWorkspaceView(v.q, "music");
   assert.equal(v.q.queryByRole('link',{name:'Open in Spotify (new tab)'}),null);
   assert.doesNotMatch(v.container.textContent!,/AZALI|ALTERED OBSIDIAN|featured/i);
+  visitWorkspace(v.q, "study");
   for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.locked(),false);
   assert.equal((v.q.getByLabelText('Your session intention') as HTMLTextAreaElement).value,'Keep my work');

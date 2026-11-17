@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { visitWorkspace } from "./workspace-visit.js";
 
 async function ready(page: Page) {
   await page.goto("/");
@@ -11,9 +12,14 @@ async function ready(page: Page) {
   if (await welcome.isVisible()) await welcome.click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("timer")).toBeVisible();
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
 }
 async function summary(page: Page, name: string) {
+  if (name === "Music") await visitWorkspace(page, "Music");
+  if (name === "Goals / notes" || name === "Saved study plans") await visitWorkspace(page, "Plan");
+  if (name === "Completed sessions") await visitWorkspace(page, "Progress");
   await page
     .locator("summary")
     .filter({ hasText: new RegExp(`^${name}$`) })
@@ -22,6 +28,7 @@ async function summary(page: Page, name: string) {
 async function silent(page: Page) {
   await summary(page, "Music");
   await page.getByLabel("Silent mode", { exact: true }).check();
+  await visitWorkspace(page, "Study");
 }
 async function lock(page: Page) {
   const brand = page.locator("button.wordmark");
@@ -74,6 +81,7 @@ for (const [name, width, height] of [
     expect(timerY).toBeLessThan(height);
     await page.getByLabel("Your session intention", { exact: true }).fill("Review one chapter");
     await page.getByRole("button", { name: "Plan session", exact: true }).click();
+    await visitWorkspace(page, "Plan");
     await page.getByRole("button", { name: "Steps", exact: true }).click();
     const plan = page.getByRole("region", { name: "Private intention plan" });
     await plan.getByRole("button", { name: "Add step", exact: true }).click();
@@ -81,6 +89,7 @@ for (const [name, width, height] of [
     await plan.getByLabel("Step 4 title", { exact: true }).fill("Write one question");
     await plan.getByRole("checkbox", { name: "Write one question", exact: true }).check();
     await plan.getByRole("button", { name: "Save on this device", exact: true }).click();
+    await visitWorkspace(page, "Study");
     await page.getByRole("button", { name: "Start focus", exact: true }).click();
     await page.waitForTimeout(350);
     await summary(page, "Appearance");
@@ -103,9 +112,11 @@ for (const [name, width, height] of [
     await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
       "Review one chapter",
     );
+    await visitWorkspace(page, "Plan");
     await expect(
       plan.getByRole("checkbox", { name: "Write one question", exact: true }),
     ).toBeChecked();
+    await visitWorkspace(page, "Study");
     await page.getByLabel("Falling leaves", { exact: true }).check();
     await expect(page.locator(".natural-flowers")).toHaveAttribute("data-running", "true");
     await page.screenshot({ path: info.outputPath(`${name}-autumn.png`) });
@@ -145,9 +156,11 @@ for (const [name, width, height] of [
     await page.locator("button.wordmark").focus();
     for (let i = 0; i < 5; i++) await page.keyboard.press("n");
     await expect(page.locator(".lock-in-mode")).toHaveCount(0);
+    await visitWorkspace(page, "Plan");
     await expect(
       plan.getByRole("checkbox", { name: "Write one question", exact: true }),
     ).toBeChecked();
+    await visitWorkspace(page, "Study");
     await page.locator("[data-action=pause]").click();
     await expect(page.locator("[data-action=resume]")).toBeVisible();
     await page.locator("[data-action=resume]").click();
@@ -312,33 +325,43 @@ test("two separate local browser contexts: explicit join, timer sync, private dr
     const p = await a.newPage(),
       q = await b.newPage();
     await ready(p);
+    await visitWorkspace(p, "Together");
     await p.getByRole("button", { name: "Party", exact: true }).click();
     await p.getByLabel("Your name", { exact: true }).fill("Synthetic host");
     await p.getByRole("button", { name: "Create room", exact: true }).click();
     const code = await p.getByLabel("Room code", { exact: true }).innerText();
     await q.goto(`/?room=${code}`);
+    await visitWorkspace(q, "Together");
     await expect(q.getByRole("button", { name: "Join room", exact: true })).toBeVisible();
     await expect(q.locator(".people")).toHaveCount(0);
     await q.getByLabel("Your name", { exact: true }).fill("Synthetic guest");
     await q.getByRole("button", { name: "Join room", exact: true }).click();
     await expect(p.locator(".people li")).toHaveCount(2);
     await expect(q.locator(".people li")).toHaveCount(2);
+    await visitWorkspace(p, "Study");
+    await visitWorkspace(q, "Study");
     await p.getByRole("button", { name: "Join room cycle", exact: true }).click();
     await q.getByRole("button", { name: "Join room cycle", exact: true }).click();
     await p.getByRole("button", { name: "Start focus", exact: true }).click();
     await expect(q.getByRole("button", { name: "Pause focus", exact: true })).toBeVisible();
     await p.getByLabel("Your session intention", { exact: true }).fill("Never shared draft");
+    await visitWorkspace(q, "Together");
     await expect(q.locator(".people")).not.toContainText("Never shared draft");
+    await visitWorkspace(q, "Study");
     await q.getByRole("button", { name: "Pause focus", exact: true }).click();
     await expect(p.getByRole("button", { name: "Resume focus", exact: true })).toBeVisible();
     await p.getByRole("button", { name: "Resume focus", exact: true }).click();
+    await visitWorkspace(p, "Together");
     await b.setOffline(true);
     await expect(p.locator(".people li")).toHaveCount(1, { timeout: 35000 });
     await b.setOffline(false);
     await expect(p.locator(".people li")).toHaveCount(2, { timeout: 20000 });
     await expect(q.getByRole("button", { name: "Pause focus", exact: true })).toBeVisible();
     await p.getByRole("button", { name: "Lock admission", exact: true }).click();
+    await visitWorkspace(q, "Together");
     await expect(q.getByText(/Admission locked/)).toBeVisible();
+    await visitWorkspace(p, "Study");
+    await visitWorkspace(q, "Study");
     await p.getByRole("button", { name: "Reset timer", exact: true }).click();
     await expect(q.getByRole("timer")).toHaveText("25:00");
   } finally {
@@ -380,8 +403,16 @@ test("music and AI: honest unavailable states, manual provider controls, pasted 
   await expect(page.getByTitle("Official Apple Music player")).toBeVisible();
   await page.getByLabel("Silent mode", { exact: true }).check();
   await expect(page.locator("iframe")).toHaveCount(0);
+  await visitWorkspace(page, "Study");
   await page.getByLabel("Your session intention", { exact: true }).fill("Summarize one page");
   await page.getByRole("button", { name: "Plan session", exact: true }).click();
+  await visitWorkspace(page, "Plan");
+  // Wait for native destination scrolling/focus to finish before positioning input.
+  await expect(page.locator('[data-page-heading="plan"]')).toBeFocused();
+  // Place the actual checkbox below the sticky header before pointer input.
+  await page
+    .getByLabel("Use local AI for planning choices", { exact: true })
+    .evaluate((e) => e.scrollIntoView({ block: "center", behavior: "instant" }));
   await page.getByLabel("Use local AI for planning choices", { exact: true }).check();
   await page.getByRole("button", { name: "Steps", exact: true }).click();
   await expect(
@@ -397,11 +428,14 @@ test("music and AI: honest unavailable states, manual provider controls, pasted 
   const plan = page.getByRole("region", { name: "Private intention plan" });
   await expect(plan.getByRole("checkbox", { name: "Read one page", exact: true })).toBeVisible();
   await plan.getByRole("checkbox", { name: "Read one page", exact: true }).check();
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
   await lock(page);
   await page.locator("button.wordmark").focus();
   for (let i = 0; i < 5; i++) await page.keyboard.press("n");
   await expect(page.locator(".lock-in-mode")).toHaveCount(0);
+  await visitWorkspace(page, "Plan");
   await expect(plan.getByRole("checkbox", { name: "Read one page", exact: true })).toBeChecked();
+  await visitWorkspace(page, "Music");
   await expect(page.getByLabel("Enable focus chime", { exact: true })).not.toBeChecked();
 });

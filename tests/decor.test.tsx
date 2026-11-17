@@ -1,3 +1,8 @@
+import {
+  openMusicControls,
+  visibleFireEvent,
+  visitWorkspace,
+} from "./workspace-navigation-helpers.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
@@ -16,7 +21,13 @@ for (const [theme, kind, toggleName] of [
       HTMLElement: dom.window.HTMLElement,
       IS_REACT_ACT_ENVIRONMENT: true,
     });
-    const { render, fireEvent, within, cleanup } = await import("@testing-library/react");
+    const {
+      render,
+      fireEvent: rawFireEvent,
+      within,
+      cleanup,
+    } = await import("@testing-library/react");
+    const fireEvent = visibleFireEvent(rawFireEvent);
     t.after(() => {
       cleanup();
       dom.window.close();
@@ -24,16 +35,19 @@ for (const [theme, kind, toggleName] of [
     const view = render(<App />),
       q = within(view.container);
     const music = view.container.querySelector(".music-panel");
-    fireEvent.click(q.getByText("Music", { selector: "summary" }));
+    openMusicControls(q, fireEvent);
     fireEvent.change(q.getByLabelText("Spotify link"), {
       target: { value: "https://open.spotify.com/playlist/0123456789ABCDEFGHIJKL" },
     });
-    fireEvent.click(q.getByRole("button", { name: "Select music link" }));
-    const link = q.getByRole("link", { name: "Open in Spotify (new tab)" });
-    const timer = q.getByRole("timer"),
+    fireEvent.click(
+      (visitWorkspace(q, "music"), q.getByRole("button", { name: "Select music link" })),
+    );
+    const link =
+      (visitWorkspace(q, "music"), q.getByRole("link", { name: "Open in Spotify (new tab)" }));
+    const timer = (visitWorkspace(q, "study"), q.getByRole("timer")),
       draft = q.getByLabelText("Your session intention");
     fireEvent.change(draft, { target: { value: "SYNTHETIC DECOR DRAFT" } });
-    fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+    fireEvent.click((visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })));
     fireEvent.click(q.getByText("Appearance", { selector: "summary" }));
     fireEvent.click(q.getByRole("button", { name: theme }));
     const layer = view.container.querySelector<HTMLElement>(".flower-layer")!;
@@ -103,12 +117,15 @@ for (const [theme, kind, toggleName] of [
     );
     fireEvent.click(q.getByRole("button", { name: theme }));
     assert.equal((q.getByLabelText(toggleName) as HTMLInputElement).checked, true);
-    assert.equal(q.getByRole("timer"), timer);
+    assert.equal((visitWorkspace(q, "study"), q.getByRole("timer")), timer);
     assert.equal(q.getByLabelText("Your session intention"), draft);
     assert.equal((draft as HTMLTextAreaElement).value, "SYNTHETIC DECOR DRAFT");
-    assert.ok(q.getByRole("button", { name: "Pause focus" }));
+    assert.ok((visitWorkspace(q, "study"), q.getByRole("button", { name: "Pause focus" })));
     assert.equal(view.container.querySelector(".music-panel"), music);
-    assert.equal(q.getByRole("link", { name: "Open in Spotify (new tab)" }), link);
+    assert.equal(
+      (visitWorkspace(q, "music"), q.getByRole("link", { name: "Open in Spotify (new tab)" })),
+      link,
+    );
     assert.equal(dom.window.localStorage.length, 0);
     fireEvent.click(q.getByRole("button", { name: "Reset appearance to white and sage" }));
     assert.equal(view.container.querySelector(".flower-layer"), null);

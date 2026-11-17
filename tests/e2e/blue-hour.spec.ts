@@ -1,10 +1,13 @@
 import { test, expect, type Page } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 
 async function ready(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: /^Continue (?:to Study Room|last session)$/ }).click();
   await expect(page.getByRole("timer")).toBeVisible();
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
   await page
     .getByLabel("Your session intention", { exact: true })
     .fill("A quiet chapter by the water");

@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -111,22 +112,30 @@ test('a completed timer opens the dialog with real data; skip closes without blo
   t.after(() => { rtl.cleanup(); performance.now = originalNow; dom.window.close(); });
   const view = rtl.render(<App />); const q = rtl.within(view.container);
   assert.equal(view.container.querySelector('[role="dialog"]'), null, 'no prompt before a session');
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Start focus' })));
   assert.equal(view.container.querySelector('[role="dialog"]'), null, 'ongoing timer is not interrupted');
   now = 1500001;
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Pause focus' }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Pause focus' })));
   const dialog = await q.findByRole('dialog');
+  const navigation = q.getByRole('navigation', { name: 'Workspace' });
+  let modalBackgroundNavigations = 0;
+  const observeNavigation = () => {
+    if (view.container.querySelector('[role="dialog"][aria-modal="true"]')) modalBackgroundNavigations++;
+  };
+  navigation.addEventListener('click', observeNavigation);
+  t.after(() => navigation.removeEventListener('click', observeNavigation));
   assert.match(dialog.textContent!, /25 min/);
-  assert.equal(q.getByRole('timer').textContent, '00:00', 'completion is not blocked');
+  assert.equal((visitWorkspace(q, "study"), q.getByRole('timer')).textContent, '00:00', 'completion is not blocked');
   assert.equal(loadSessions(dom.window.localStorage as never).sessions.length, 1, 'saved without feedback');
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Skip' }));
+  rtl.fireEvent.click(rtl.within(dialog).getByRole('button', { name: 'Skip' }));
+  assert.equal(modalBackgroundNavigations, 0, 'completion dismissal must not navigate behind the open modal');
   assert.equal(view.container.querySelector('[role="dialog"]'), null);
   assert.equal(loadSessions(dom.window.localStorage as never).sessions.length, 1);
 
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Reset timer' }));
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Reset timer' })));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Start focus' })));
   now += 1500001;
-  rtl.fireEvent.click(q.getByRole('button', { name: 'Pause focus' }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Pause focus' })));
   await q.findByRole('dialog');
   const sessions = loadSessions(dom.window.localStorage as never).sessions;
   assert.equal(sessions.length, 2, 'a new cycle is a new record');

@@ -1,3 +1,10 @@
+import { Walkthrough } from "./Walkthrough.js";
+import { FeaturePageIntro } from "./FeaturePageIntro.js";
+import {
+  WorkspaceNavigation,
+  WorkspaceSection,
+  useWorkspaceNavigation,
+} from "./WorkspaceNavigation.js";
 import { useFocusView } from "./useFocusView.js";
 import { inviteCode, roomInvite, loopbackInvite } from "./invite.js";
 import { usePrivateStorage } from "./privateStorage.js";
@@ -64,6 +71,7 @@ export function App({ endpoint, welcome = false }: { endpoint?: string; welcome?
   );
 }
 function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?: boolean }) {
+  const { view, navigate } = useWorkspaceNavigation();
   const planSelection = usePlanSelection();
   const storage = usePrivateStorage();
   const sessionStorage = usePrivateStorage("sessionStorage");
@@ -80,6 +88,22 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
     showWelcome();
   }
   const { focusView, setFocusView, fullscreenMessage, toggleFullscreen } = useFocusView();
+  const [focusOptionsOpen, setFocusOptionsOpen] = useState(false);
+  useEffect(() => {
+    const reveal = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === ".focus-setup")
+        flushSync(() => setFocusOptionsOpen(true));
+    };
+    window.addEventListener("studyroom:reveal-tool", reveal);
+    return () => window.removeEventListener("studyroom:reveal-tool", reveal);
+  }, []);
+  useEffect(() => {
+    // Only reveal an already-resumed copy; never open/load an untouched library.
+    if (focusView && view === "study") {
+      const library = document.querySelector<HTMLDetailsElement>(".saved-study-plans");
+      if (library?.querySelector(".resumed-study-plan")) library.open = true;
+    }
+  }, [focusView, view]);
   const [background, setBackground] = useState<string | undefined>();
   const [motionPalette, setMotionPalette] = useState<readonly string[] | null>(null);
   const [flowerEffect, setFlowerEffect] = useState<FlowerEffect>("none");
@@ -287,6 +311,7 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
     }
     setIntentionError("");
     setSubmitted(draft.trim());
+    navigate("plan");
     if (auth?.config?.required) setPlanningRequest((n) => n + 1);
   }
 
@@ -694,6 +719,8 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
   return (
     <CopyContext.Provider value={c}>
       <div
+        data-active-view={view}
+        data-focus-options={focusOptionsOpen || undefined}
         className={`room-backdrop${lockIn ? " lock-in-mode" : ""}${focusView ? " focus-view" : ""}`}
         style={
           {
@@ -705,7 +732,14 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
         }
       >
         <div className="environment-wash" aria-hidden="true" data-locked={lockIn} />
-        <a className="skip-link" href="#main">
+        <a
+          className="skip-link"
+          href="#main"
+          onClick={(event) => {
+            event.preventDefault();
+            document.getElementById("main")?.focus();
+          }}
+        >
           Skip to content
         </a>
         {lockIn && <LockedAtmosphere selected={atmosphere} motion={atmosphereMotion} />}
@@ -771,63 +805,64 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
             </aside>
           )}
           <main id="main" tabIndex={-1}>
-            <QuickGuide
-              setup={{
-                minutes,
-                disabled: timerDisabled || !fresh,
-                invalid: durationMinutes === null,
-                onMinutes: editMinutes,
-                intention: draft,
-                onIntention: setDraft,
+            <WorkspaceNavigation
+              view={view}
+              onNavigate={(next) => {
+                setFocusOptionsOpen(false);
+                navigate(next);
               }}
-              room={roomAmbience}
             />
-
-            <div className="page-heading">
-              <div>
-                <p className="eyebrow">{c("heroEyebrow", "A LITTLE SPACE TO BEGIN")}</p>
-                <h1>{c("heroTitle", "One thing at a time.")}</h1>
+            <FeaturePageIntro view={view} />
+            <Walkthrough navigate={navigate} />
+            <WorkspaceSection active={view} view="guide">
+              <QuickGuide room={roomAmbience} />
+              <HowStudyRoomWorks />
+            </WorkspaceSection>
+            <WorkspaceSection active={view} view="together">
+              <div className="page-heading">
+                {room && (
+                  <div className="invite">
+                    <span>Invite a study partner</span>
+                    <strong aria-label="Room code">{room.code}</strong>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(roomInvite(room.code));
+                          setInviteMessage("Invite link copied.");
+                        } catch {
+                          setInviteMessage("Copy unavailable. Select the link below.");
+                        }
+                      }}
+                    >
+                      Copy link
+                    </button>
+                    <input aria-label="Room invite link" readOnly value={roomInvite(room.code)} />
+                    <small>
+                      {loopbackInvite()
+                        ? `Loopback origin ${window.location.origin}: this link only works on the same device, not on a friend’s device. A public HTTPS website with sign-in configured is required for remote friends.`
+                        : `Website origin ${window.location.origin}: friends need this exact website to be reachable. Sign in if required, enter your name, then explicitly join. Reachability is not checked here.`}
+                    </small>
+                    <span role="status">{inviteMessage}</span>
+                  </div>
+                )}
               </div>
-              {room && (
-                <div className="invite">
-                  <span>Invite a study partner</span>
-                  <strong aria-label="Room code">{room.code}</strong>
-                  <button
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(roomInvite(room.code));
-                        setInviteMessage("Invite link copied.");
-                      } catch {
-                        setInviteMessage("Copy unavailable. Select the link below.");
-                      }
-                    }}
-                  >
-                    Copy link
-                  </button>
-                  <input aria-label="Room invite link" readOnly value={roomInvite(room.code)} />
-                  <small>
-                    {loopbackInvite()
-                      ? `Loopback origin ${window.location.origin}: this link only works on the same device, not on a friend’s device. A public HTTPS website with sign-in configured is required for remote friends.`
-                      : `Website origin ${window.location.origin}: friends need this exact website to be reachable. Sign in if required, enter your name, then explicitly join. Reachability is not checked here.`}
-                  </small>
-                  <span role="status">{inviteMessage}</span>
-                </div>
-              )}
-            </div>
+            </WorkspaceSection>
             <p className="demo-note">
               {auth?.config?.required
                 ? "Signed in · Private device data is separated by account. Rooms reset on server restart."
                 : "Local demo · Room codes are not authentication. Don’t enter sensitive content. Rooms reset on server restart."}
             </p>
             <div className="session-tools">
-              <nav className="mode-switch" aria-label="Session mode">
-                <button aria-pressed={!party} onClick={goSolo}>
-                  {c("modeSolo", "Solo")}
-                </button>
-                <button aria-pressed={party} onClick={() => setParty(true)}>
-                  {c("modeParty", "Party")}
-                </button>
-              </nav>
+              <WorkspaceSection active={view} view="together">
+                <nav className="mode-switch" aria-label="Session mode">
+                  <button aria-pressed={!party} onClick={goSolo}>
+                    {c("modeSolo", "Solo")}
+                  </button>
+                  <button aria-pressed={party} onClick={() => setParty(true)}>
+                    {c("modeParty", "Party")}
+                  </button>
+                </nav>
+              </WorkspaceSection>
               <Appearance
                 onChange={setBackground}
                 onEffectChange={setFlowerEffect}
@@ -870,86 +905,89 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
                 {error}
               </p>
             )}
-            {party && !room && (
-              <details open className="optional-panel party-lobby">
-                <summary>Create or join a party</summary>
-                <p className="quiet-note">
-                  A shared table, not a shared private notebook. Everyone in the room can operate
-                  its clock; you choose whether to join that cycle.
-                </p>
-                {invited && (
+            <WorkspaceSection active={view} view="together">
+              {party && !room && (
+                <details open className="optional-panel party-lobby">
+                  <summary>Create or join a party</summary>
                   <p className="quiet-note">
-                    Invite {invited}: enter your name and click Join room.{" "}
-                    {loopbackInvite()
-                      ? "This loopback link only works on the same device."
-                      : "Sign-in does not join automatically."}
+                    A shared table, not a shared private notebook. Everyone in the room can operate
+                    its clock; you choose whether to join that cycle.
                   </p>
-                )}
-                <form
-                  className="party-entry-form"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.nativeEvent.isComposing || e.keyCode === 229))
+                  {invited && (
+                    <p className="quiet-note">
+                      Invite {invited}: enter your name and click Join room.{" "}
+                      {loopbackInvite()
+                        ? "This loopback link only works on the same device."
+                        : "Sign-in does not join automatically."}
+                    </p>
+                  )}
+                  <form
+                    className="party-entry-form"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.nativeEvent.isComposing || e.keyCode === 229))
+                        e.preventDefault();
+                    }}
+                    onSubmit={(e) => {
                       e.preventDefault();
-                  }}
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (/^[A-Z0-9]{6}$/.test(code)) void send("room:join", { name, code });
-                    else
-                      setError(
-                        "Enter exactly six uppercase letters or digits. The code is never changed automatically.",
-                      );
-                  }}
-                >
-                  <label htmlFor={`${uid}-name`}>
-                    Your name
-                    <input
-                      ref={nameInput}
-                      id={`${uid}-name`}
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      maxLength={32}
-                      required
-                      autoComplete="off"
-                      placeholder="A name for this session"
-                    />
-                  </label>
-                  {!invited && (
-                    <button
-                      className="primary"
-                      disabled={disabled}
-                      type="button"
-                      onClick={() => void send("room:create", { name })}
-                    >
-                      Create room
+                      if (/^[A-Z0-9]{6}$/.test(code)) void send("room:join", { name, code });
+                      else
+                        setError(
+                          "Enter exactly six uppercase letters or digits. The code is never changed automatically.",
+                        );
+                    }}
+                  >
+                    <label htmlFor={`${uid}-name`}>
+                      Your name
+                      <input
+                        ref={nameInput}
+                        id={`${uid}-name`}
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        maxLength={32}
+                        required
+                        autoComplete="off"
+                        placeholder="A name for this session"
+                      />
+                    </label>
+                    {!invited && (
+                      <button
+                        className="primary"
+                        disabled={disabled}
+                        type="button"
+                        onClick={() => void send("room:create", { name })}
+                      >
+                        Create room
+                      </button>
+                    )}
+                    <label htmlFor={`${uid}-code`}>
+                      Invite code
+                      <input
+                        id={`${uid}-code`}
+                        value={code}
+                        readOnly={!!invited}
+                        onChange={(e) => setCode(e.target.value)}
+                        maxLength={6}
+                        autoComplete="off"
+                        placeholder="6-character code"
+                      />
+                    </label>
+                    <button type="submit" disabled={disabled}>
+                      Join room
+                    </button>
+                  </form>
+                  <p className="quiet-note">
+                    Enter explicitly joins the entered code. To create instead, choose Create room.
+                    Neither starts a timer. Codes are case-sensitive. Private work stays in this
+                    tab.
+                  </p>
+                  {invited && error && (
+                    <button disabled={disabled} onClick={() => void send("room:create", { name })}>
+                      Create a different room
                     </button>
                   )}
-                  <label htmlFor={`${uid}-code`}>
-                    Invite code
-                    <input
-                      id={`${uid}-code`}
-                      value={code}
-                      readOnly={!!invited}
-                      onChange={(e) => setCode(e.target.value)}
-                      maxLength={6}
-                      autoComplete="off"
-                      placeholder="6-character code"
-                    />
-                  </label>
-                  <button type="submit" disabled={disabled}>
-                    Join room
-                  </button>
-                </form>
-                <p className="quiet-note">
-                  Enter explicitly joins the entered code. To create instead, choose Create room.
-                  Neither starts a timer. Codes are case-sensitive. Private work stays in this tab.
-                </p>
-                {invited && error && (
-                  <button disabled={disabled} onClick={() => void send("room:create", { name })}>
-                    Create a different room
-                  </button>
-                )}
-              </details>
-            )}
+                </details>
+              )}
+            </WorkspaceSection>
             {checkpointError && (
               <p role="status" className="quiet-note">
                 {checkpointError}
@@ -961,314 +999,328 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
               </p>
             )}
             <div className={`session-grid ${!room ? "solo-grid" : ""}`}>
-              {room && (
-                <section className="clock-choice" aria-label="Choose your clock">
-                  <p>
-                    {clockChoice === null
-                      ? "Choose a clock before using timer controls."
-                      : "Your personal clock and the room cycle stay separate."}{" "}
-                    Switching never resets either clock. A running personal clock continues
-                    independently.
-                  </p>
-                  <div>
-                    <button
-                      aria-pressed={clockChoice === "personal"}
-                      onClick={() => setClockChoice("personal")}
-                    >
-                      Keep personal clock
-                    </button>
-                    <button
-                      aria-pressed={clockChoice === "room"}
-                      onClick={() => setClockChoice("room")}
-                    >
-                      Join room cycle
-                    </button>
-                  </div>
-                </section>
-              )}
-              <section className="focus-surface" aria-labelledby={`${uid}-focus-title`}>
-                <div className="focus-top">
-                  <h2 id={`${uid}-focus-title`}>
-                    {sharedClock
-                      ? c("focusTitleShared", "Shared focus")
-                      : c("focusTitlePersonal", "Personal focus")}
-                  </h2>
-                  <span role="status" aria-live="polite">
-                    {running
-                      ? c("statusRunning", "In the flow")
-                      : remaining === 0
-                        ? c("statusComplete", "Session complete")
-                        : fresh
-                          ? c("statusReady", "Ready when you are")
-                          : c("statusPaused", "A moment to pause")}
-                  </span>
-                </div>
-                <div className="timer-area">
-                  <p className="eyebrow">
-                    {running
-                      ? c("focusEyebrowRunning", "JUST THIS, FOR NOW")
-                      : c("focusEyebrowIdle", "A LITTLE TIME, WELL SPENT")}
-                  </p>
-                  <div
-                    role="timer"
-                    aria-label="Focus time remaining"
-                    aria-live="off"
-                    className="timer"
-                  >
-                    {clockText}
-                  </div>
-                  <p className="timer-caption">
-                    {remaining === 0
-                      ? c("captionComplete", "Take a breath. You made space for your work.")
-                      : sharedClock
-                        ? "A shared rhythm. Your own work."
-                        : c("captionIdle", "A little space for your own next step.")}
-                  </p>
-                </div>
-                <div className="timer-controls">
-                  <div className="duration-field">
-                    <label htmlFor={`${uid}-duration`}>{c("durationLabel", "Focus length")}</label>
-                    <input
-                      id={`${uid}-duration`}
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      max="180"
-                      step="1"
-                      value={minutes}
-                      disabled={timerDisabled || !fresh}
-                      aria-invalid={durationMinutes === null}
-                      aria-describedby={`${uid}-duration-help${durationMinutes === null ? ` ${uid}-duration-error` : ""}`}
-                      onChange={(e) => editMinutes(e.target.value)}
-                    />
-                    <small id={`${uid}-duration-help`}>
-                      Minutes · 1–180. Reset to edit an in-progress cycle.{" "}
-                      {sharedClock &&
-                        "Your preview is private; only Start focus sends the chosen duration to peers."}
-                    </small>
-                    {durationMinutes === null && (
-                      <p id={`${uid}-duration-error`} role="alert" className="duration-error">
-                        Enter a whole number from 1 to 180 minutes.
-                      </p>
-                    )}
-                  </div>
-                  <div className="timer-buttons">
-                    <button
-                      className="primary"
-                      data-action={running ? "pause" : fresh ? "start" : "resume"}
-                      disabled={
-                        timerDisabled ||
-                        (!running && remaining === 0) ||
-                        (fresh && durationMinutes === null)
-                      }
-                      onClick={() => control(running ? "pause" : "start")}
-                    >
-                      {running
-                        ? c("pauseFocus", "Pause focus")
-                        : fresh
-                          ? c("startFocus", "Start focus")
-                          : c("resumeFocus", "Resume focus")}
-                    </button>
-                    <button
-                      data-action="reset"
-                      disabled={timerDisabled}
-                      onClick={() => control("reset")}
-                    >
-                      {c("resetTimer", "Reset timer")}
-                    </button>
-                  </div>
-                </div>
-                <p className="quiet-note">
-                  {sharedClock
-                    ? "Timer controls affect everyone in this room."
-                    : "Your own clock. No room required."}
-                  {sharedClock &&
-                    !connected &&
-                    " Display is a last-known estimate until reconnected."}
-                </p>
-              </section>
-              {room && (
-                <aside className="people-surface" aria-labelledby={`${uid}-people-title`}>
-                  <p className="eyebrow">GOOD COMPANY, QUIETLY</p>
-                  <h2 id={`${uid}-people-title`}>
-                    At the table <span>({room.participants.length})</span>
-                  </h2>
-                  <p className="quiet-note" role="status">
-                    {room.locked
-                      ? "Admission locked · existing participants stay."
-                      : "Admission open."}{" "}
-                    {room.participants.length}/{room.maxParticipants ?? 16} seats.{" "}
-                    {room.hostId
-                      ? room.hostId === selfId
-                        ? "You are the host."
-                        : "Only the host can lock admission or remove people."
-                      : "Host offline · no automatic promotion. Everyone still at the table can operate the shared timer."}
-                  </p>
-                  {room.hostId === selfId && (
-                    <button
-                      disabled={disabled}
-                      onClick={() => void send("room:lock", { locked: !room.locked })}
-                    >
-                      {room.locked ? "Unlock admission" : "Lock admission"}
-                    </button>
-                  )}
-                  <ul className="people">
-                    {room.participants.map((p) => (
-                      <li key={p.id}>
-                        <span className="avatar" aria-hidden="true">
-                          {p.name.charAt(0).toUpperCase()}
-                        </span>
-                        <div>
-                          <strong>{p.name}</strong>
-                          {p.id === selfId && <small> · you</small>}
-                          <p>{p.intention ?? "Here to focus"}</p>
-                          {p.profile && (
-                            <details>
-                              <summary>View {p.profile.displayName}’s profile</summary>
-                              <ProfileCard profile={p.profile} />
-                            </details>
-                          )}
-                          {p.id === room.hostId && <small>Host</small>}
-                          {room.hostId === selfId && p.id !== selfId && (
-                            <button
-                              disabled={disabled}
-                              aria-label={`Remove ${p.name}`}
-                              onClick={() => void send("room:remove", { participantId: p.id })}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  <section className="room-listening" aria-label="What everyone is listening to">
-                    <h3>What everyone’s listening to</h3>
-                    <p className="quiet-note">
-                      Each person connects Spotify and chooses to share. Listening status is visible
-                      only in this room, independently of profile sharing.
+              <WorkspaceSection active={view} view="study" className="study-clock">
+                {room && (
+                  <section className="clock-choice" aria-label="Choose your clock">
+                    <p>
+                      {clockChoice === null
+                        ? "Choose a clock before using timer controls."
+                        : "Your personal clock and the room cycle stay separate."}{" "}
+                      Switching never resets either clock. A running personal clock continues
+                      independently.
                     </p>
-                    {room.participants.filter((p) => p.listening).length === 0 && (
-                      <p>No listening status shared yet.</p>
-                    )}
-                    {room.participants
-                      .filter((p) => p.listening)
-                      .map((p) => (
-                        <div key={p.id}>
-                          <strong>
-                            {p.name}
-                            {p.id === selfId ? " · you" : ""}
-                          </strong>
-                          <ListeningCard track={p.listening!} />
-                        </div>
-                      ))}
-                  </section>
-                  <p className="quiet-note">
-                    Presence reflects the last server update; disconnected people are removed when
-                    the server detects the loss. Rejoining creates a new presence; sharing is never
-                    restored automatically. A lock blocks new connections, including guests
-                    rejoining after disconnect. Removal is not a ban; lock admission to prevent
-                    re-entry.{" "}
-                    {auth?.config?.required
-                      ? "Host ownership belongs to the verified creator account, including after reconnect; it is never transferred automatically."
-                      : "Local demo: host permissions belong only to the original anonymous socket. Disconnecting or leaving loses those controls, with no promotion; create a new room if needed."}
-                  </p>
-                </aside>
-              )}
-              <section className="intention-surface" aria-labelledby={`${uid}-intention-title`}>
-                <div>
-                  <p className="eyebrow">{c("intentionEyebrow", "ONE SMALL COMMITMENT")}</p>
-                  <h2 id={`${uid}-intention-title`}>
-                    {c("intentionTitle", "What are you making space for?")}
-                  </h2>
-                  <p id={`${uid}-privacy-help`}>
-                    Your draft stays in this tab, not on the server. Only “Share with room” sends it
-                    to others. Editing a shared draft doesn’t update its shared version.
-                  </p>
-                </div>
-                <div>
-                  <label htmlFor={`${uid}-intention`}>
-                    {c("intentionLabel", "Your session intention")}
-                  </label>
-                  <textarea
-                    id={`${uid}-intention`}
-                    aria-describedby={`${uid}-privacy-help ${uid}-intention-help${intentionError ? ` ${uid}-intention-error` : ""}`}
-                    aria-invalid={!!intentionError}
-                    maxLength={240}
-                    rows={3}
-                    value={draft}
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      setIntentionError("");
-                    }}
-                    onCompositionStart={() => {
-                      composing.current = true;
-                    }}
-                    onCompositionEnd={() => {
-                      composing.current = false;
-                    }}
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter" &&
-                        !e.shiftKey &&
-                        !e.nativeEvent.isComposing &&
-                        !composing.current &&
-                        e.keyCode !== 229
-                      ) {
-                        e.preventDefault();
-                        planSession();
-                      }
-                    }}
-                    placeholder={c("intentionPlaceholder", "For this session, I’ll…")}
-                  />
-                  <p className="quiet-note" id={`${uid}-intention-help`}>
-                    {auth?.config?.required
-                      ? "Plan session (or Enter) sends only this intention and focus length to free AI for a step-by-step plan. No notes are sent. Focus starts separately."
-                      : "Enter to open optional planning help · Shift+Enter for a new line. Focus starts only with Start focus."}
-                  </p>
-                  {intentionError && (
-                    <p className="error" role="alert" id={`${uid}-intention-error`}>
-                      {intentionError}
-                    </p>
-                  )}
-                  <button onClick={planSession}>{c("planSession", "Plan session")}</button>
-                  <div className="intention-actions">
-                    <span className="sharing-state">
-                      {shared
-                        ? c("sharedState", "A version is shared with the room")
-                        : c("privateState", "Private · only in this tab")}
-                    </span>
-                    {room && (
+                    <div>
                       <button
-                        disabled={disabled || !draft.trim()}
-                        onClick={() => void send("intention:share", { text: draft })}
+                        aria-pressed={clockChoice === "personal"}
+                        onClick={() => setClockChoice("personal")}
                       >
-                        {shared
-                          ? c("updateIntention", "Update shared intention")
-                          : c("shareIntention", "Share with room")}
+                        Keep personal clock
                       </button>
-                    )}
-                    {shared && (
+                      <button
+                        aria-pressed={clockChoice === "room"}
+                        onClick={() => setClockChoice("room")}
+                      >
+                        Join room cycle
+                      </button>
+                    </div>
+                  </section>
+                )}
+                <section className="focus-surface" aria-labelledby={`${uid}-focus-title`}>
+                  <div className="focus-top">
+                    <h2 id={`${uid}-focus-title`}>
+                      {sharedClock
+                        ? c("focusTitleShared", "Shared focus")
+                        : c("focusTitlePersonal", "Personal focus")}
+                    </h2>
+                    <span role="status" aria-live="polite">
+                      {running
+                        ? c("statusRunning", "In the flow")
+                        : remaining === 0
+                          ? c("statusComplete", "Session complete")
+                          : fresh
+                            ? c("statusReady", "Ready when you are")
+                            : c("statusPaused", "A moment to pause")}
+                    </span>
+                  </div>
+                  <div className="timer-area">
+                    <p className="eyebrow">
+                      {running
+                        ? c("focusEyebrowRunning", "JUST THIS, FOR NOW")
+                        : c("focusEyebrowIdle", "A LITTLE TIME, WELL SPENT")}
+                    </p>
+                    <div
+                      role="timer"
+                      aria-label="Focus time remaining"
+                      aria-live="off"
+                      className="timer"
+                    >
+                      {clockText}
+                    </div>
+                    <p className="timer-caption">
+                      {remaining === 0
+                        ? c("captionComplete", "Take a breath. You made space for your work.")
+                        : sharedClock
+                          ? "A shared rhythm. Your own work."
+                          : c("captionIdle", "A little space for your own next step.")}
+                    </p>
+                  </div>
+                  <div className="timer-controls">
+                    <div className="duration-field">
+                      <label htmlFor={`${uid}-duration`}>
+                        {c("durationLabel", "Focus length")}
+                      </label>
+                      <input
+                        id={`${uid}-duration`}
+                        type="number"
+                        inputMode="numeric"
+                        min="1"
+                        max="180"
+                        step="1"
+                        value={minutes}
+                        disabled={timerDisabled || !fresh}
+                        aria-invalid={durationMinutes === null}
+                        aria-describedby={`${uid}-duration-help${durationMinutes === null ? ` ${uid}-duration-error` : ""}`}
+                        onChange={(e) => editMinutes(e.target.value)}
+                      />
+                      <small id={`${uid}-duration-help`}>
+                        Minutes · 1–180. Reset to edit an in-progress cycle.{" "}
+                        {sharedClock &&
+                          "Your preview is private; only Start focus sends the chosen duration to peers."}
+                      </small>
+                      {durationMinutes === null && (
+                        <p id={`${uid}-duration-error`} role="alert" className="duration-error">
+                          Enter a whole number from 1 to 180 minutes.
+                        </p>
+                      )}
+                    </div>
+                    <div className="timer-buttons">
+                      <button
+                        className="primary"
+                        data-action={running ? "pause" : fresh ? "start" : "resume"}
+                        disabled={
+                          timerDisabled ||
+                          (!running && remaining === 0) ||
+                          (fresh && durationMinutes === null)
+                        }
+                        onClick={() => control(running ? "pause" : "start")}
+                      >
+                        {running
+                          ? c("pauseFocus", "Pause focus")
+                          : fresh
+                            ? c("startFocus", "Start focus")
+                            : c("resumeFocus", "Resume focus")}
+                      </button>
+                      <button
+                        data-action="reset"
+                        disabled={timerDisabled}
+                        onClick={() => control("reset")}
+                      >
+                        {c("resetTimer", "Reset timer")}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="quiet-note">
+                    {sharedClock
+                      ? "Timer controls affect everyone in this room."
+                      : "Your own clock. No room required."}
+                    {sharedClock &&
+                      !connected &&
+                      " Display is a last-known estimate until reconnected."}
+                  </p>
+                </section>
+              </WorkspaceSection>
+              <WorkspaceSection active={view} view="together">
+                {room && (
+                  <aside className="people-surface" aria-labelledby={`${uid}-people-title`}>
+                    <p className="eyebrow">GOOD COMPANY, QUIETLY</p>
+                    <h2 id={`${uid}-people-title`}>
+                      At the table <span>({room.participants.length})</span>
+                    </h2>
+                    <p className="quiet-note" role="status">
+                      {room.locked
+                        ? "Admission locked · existing participants stay."
+                        : "Admission open."}{" "}
+                      {room.participants.length}/{room.maxParticipants ?? 16} seats.{" "}
+                      {room.hostId
+                        ? room.hostId === selfId
+                          ? "You are the host."
+                          : "Only the host can lock admission or remove people."
+                        : "Host offline · no automatic promotion. Everyone still at the table can operate the shared timer."}
+                    </p>
+                    {room.hostId === selfId && (
                       <button
                         disabled={disabled}
-                        onClick={() => void send("intention:withdraw", {})}
+                        onClick={() => void send("room:lock", { locked: !room.locked })}
                       >
-                        {c("withdrawIntention", "Withdraw sharing")}
+                        {room.locked ? "Unlock admission" : "Lock admission"}
                       </button>
                     )}
+                    <ul className="people">
+                      {room.participants.map((p) => (
+                        <li key={p.id}>
+                          <span className="avatar" aria-hidden="true">
+                            {p.name.charAt(0).toUpperCase()}
+                          </span>
+                          <div>
+                            <strong>{p.name}</strong>
+                            {p.id === selfId && <small> · you</small>}
+                            <p>{p.intention ?? "Here to focus"}</p>
+                            {p.profile && (
+                              <details>
+                                <summary>View {p.profile.displayName}’s profile</summary>
+                                <ProfileCard profile={p.profile} />
+                              </details>
+                            )}
+                            {p.id === room.hostId && <small>Host</small>}
+                            {room.hostId === selfId && p.id !== selfId && (
+                              <button
+                                disabled={disabled}
+                                aria-label={`Remove ${p.name}`}
+                                onClick={() => void send("room:remove", { participantId: p.id })}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    <section className="room-listening" aria-label="What everyone is listening to">
+                      <h3>What everyone’s listening to</h3>
+                      <p className="quiet-note">
+                        Each person connects Spotify and chooses to share. Listening status is
+                        visible only in this room, independently of profile sharing.
+                      </p>
+                      {room.participants.filter((p) => p.listening).length === 0 && (
+                        <p>No listening status shared yet.</p>
+                      )}
+                      {room.participants
+                        .filter((p) => p.listening)
+                        .map((p) => (
+                          <div key={p.id}>
+                            <strong>
+                              {p.name}
+                              {p.id === selfId ? " · you" : ""}
+                            </strong>
+                            <ListeningCard track={p.listening!} />
+                          </div>
+                        ))}
+                    </section>
+                    <p className="quiet-note">
+                      Presence reflects the last server update; disconnected people are removed when
+                      the server detects the loss. Rejoining creates a new presence; sharing is
+                      never restored automatically. A lock blocks new connections, including guests
+                      rejoining after disconnect. Removal is not a ban; lock admission to prevent
+                      re-entry.{" "}
+                      {auth?.config?.required
+                        ? "Host ownership belongs to the verified creator account, including after reconnect; it is never transferred automatically."
+                        : "Local demo: host permissions belong only to the original anonymous socket. Disconnecting or leaving loses those controls, with no promotion; create a new room if needed."}
+                    </p>
+                  </aside>
+                )}
+              </WorkspaceSection>
+              <WorkspaceSection active={view} view="study">
+                <section className="intention-surface" aria-labelledby={`${uid}-intention-title`}>
+                  <div>
+                    <p className="eyebrow">{c("intentionEyebrow", "ONE SMALL COMMITMENT")}</p>
+                    <h2 id={`${uid}-intention-title`}>
+                      {c("intentionTitle", "What are you making space for?")}
+                    </h2>
+                    <p id={`${uid}-privacy-help`}>
+                      Your draft stays in this tab, not on the server. Only “Share with room” sends
+                      it to others. Editing a shared draft doesn’t update its shared version.
+                    </p>
                   </div>
-                  <p className="quiet-note">
-                    Withdrawal removes your shared version, not anyone else’s. It cannot erase what
-                    others have already seen.
-                  </p>
-                </div>
-              </section>
+                  <div>
+                    <label htmlFor={`${uid}-intention`}>
+                      {c("intentionLabel", "Your session intention")}
+                    </label>
+                    <textarea
+                      id={`${uid}-intention`}
+                      aria-describedby={`${uid}-privacy-help ${uid}-intention-help${intentionError ? ` ${uid}-intention-error` : ""}`}
+                      aria-invalid={!!intentionError}
+                      maxLength={240}
+                      rows={3}
+                      value={draft}
+                      onChange={(e) => {
+                        setDraft(e.target.value);
+                        setIntentionError("");
+                      }}
+                      onCompositionStart={() => {
+                        composing.current = true;
+                      }}
+                      onCompositionEnd={() => {
+                        composing.current = false;
+                      }}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          !e.shiftKey &&
+                          !e.nativeEvent.isComposing &&
+                          !composing.current &&
+                          e.keyCode !== 229
+                        ) {
+                          e.preventDefault();
+                          planSession();
+                        }
+                      }}
+                      placeholder={c("intentionPlaceholder", "For this session, I’ll…")}
+                    />
+                    <p className="quiet-note" id={`${uid}-intention-help`}>
+                      {auth?.config?.required
+                        ? "Plan session (or Enter) sends only this intention and focus length to free AI for a step-by-step plan. No notes are sent. Focus starts separately."
+                        : "Enter to open optional planning help · Shift+Enter for a new line. Focus starts only with Start focus."}
+                    </p>
+                    {intentionError && (
+                      <p className="error" role="alert" id={`${uid}-intention-error`}>
+                        {intentionError}
+                      </p>
+                    )}
+                    <button onClick={planSession}>{c("planSession", "Plan session")}</button>
+                    <div className="intention-actions">
+                      <span className="sharing-state">
+                        {shared
+                          ? c("sharedState", "A version is shared with the room")
+                          : c("privateState", "Private · only in this tab")}
+                      </span>
+                      {room && (
+                        <button
+                          disabled={disabled || !draft.trim()}
+                          onClick={() => void send("intention:share", { text: draft })}
+                        >
+                          {shared
+                            ? c("updateIntention", "Update shared intention")
+                            : c("shareIntention", "Share with room")}
+                        </button>
+                      )}
+                      {shared && (
+                        <button
+                          disabled={disabled}
+                          onClick={() => void send("intention:withdraw", {})}
+                        >
+                          {c("withdrawIntention", "Withdraw sharing")}
+                        </button>
+                      )}
+                    </div>
+                    <p className="quiet-note">
+                      Withdrawal removes your shared version, not anyone else’s. It cannot erase
+                      what others have already seen.
+                    </p>
+                  </div>
+                </section>
+              </WorkspaceSection>
             </div>
-            <div className="workspace-tools">
-              <Music lockIn={lockIn} activation={musicActivation} />
-              <Ambience room={roomAmbience} onWelcome={showHome} />
+            <WorkspaceSection active={view} view="music">
+              <h2>Playback &amp; ambience</h2>
+              <div className="workspace-tools">
+                <Music lockIn={lockIn} activation={musicActivation} />
+                <Ambience room={roomAmbience} onWelcome={showHome} />
+              </div>
+            </WorkspaceSection>
+            <WorkspaceSection active={view} view="study">
               <FocusSetup
                 onEnter={() => {
+                  setFocusOptionsOpen(false);
                   setFocusView(true);
                   document
                     .querySelector<HTMLElement>(".focus-surface")
@@ -1276,98 +1328,115 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
                 }}
                 active={focusView}
               />
-              <HowStudyRoomWorks />
-            </div>
+            </WorkspaceSection>
 
-            <details className="optional-panel spotify-listening-setup">
-              <summary>Your Spotify listening status</summary>
-              <SpotifyPresence
-                target={
-                  room && connected ? { roomCode: room.code, participantId: selfId } : undefined
-                }
-              />
-            </details>
-            <GoalNotes
-              commitment={draft}
-              onChoose={setDraft}
-              availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
-            >
-              <SessionIntention
-                requestSequence={planningRequest}
-                submitted={submitted}
-                availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
-                onDismiss={() => setSubmitted(null)}
-              />
-            </GoalNotes>
-            <section className="chime-controls" aria-label="Focus chime controls">
-              <label className="storage-option">
-                <input
-                  type="checkbox"
-                  checked={chimeEnabled}
-                  onChange={(e) => {
-                    soundGeneration.current++;
-                    chimeAllowed.current = e.target.checked;
-                    setChimeEnabled(e.target.checked);
-                    if (!e.target.checked) chime.current?.cancel();
-                  }}
+            <WorkspaceSection active={view} view="music">
+              <details className="optional-panel spotify-listening-setup">
+                <summary>Your Spotify listening status</summary>
+                <SpotifyPresence
+                  target={
+                    room && connected ? { roomCode: room.code, participantId: selfId } : undefined
+                  }
                 />
-                {c("chimeEnable", "Enable focus chime")}
-              </label>
-              <button
-                disabled={!chimeEnabled}
-                onClick={() => {
-                  soundGeneration.current++;
-                  setSoundMessage("");
-                  void chime.current?.prepare();
-                  void chime.current?.play(lockIn ? "locked" : "normal");
-                }}
+              </details>
+            </WorkspaceSection>
+            <WorkspaceSection
+              active={focusView && view === "study" ? "plan" : view}
+              view="plan"
+              className={focusView && view === "study" ? "focus-planning" : ""}
+            >
+              <GoalNotes
+                commitment={draft}
+                onChoose={setDraft}
+                availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
               >
-                Preview chime
-              </button>
-              <button
-                onClick={() => {
-                  soundGeneration.current++;
-                  chime.current?.cancel();
-                }}
-              >
-                Stop chime
-              </button>
-              <p className="quiet-note">
-                Quiet local cue on your own fresh Start only. Resume is silent. Fades to silence,
-                not into Spotify; music uses its own manual Play control.
-              </p>
-              {soundMessage && (
-                <p role="status" className="quiet-note">
-                  {soundMessage}
+                <SessionIntention
+                  requestSequence={planningRequest}
+                  submitted={submitted}
+                  availableMinutes={(fresh ? durationMinutes : timer.durationMs / 60000) ?? 25}
+                  onDismiss={() => setSubmitted(null)}
+                />
+              </GoalNotes>
+            </WorkspaceSection>
+            <WorkspaceSection active={view} view="music">
+              <section className="chime-controls" aria-label="Focus chime controls">
+                <label className="storage-option">
+                  <input
+                    type="checkbox"
+                    checked={chimeEnabled}
+                    onChange={(e) => {
+                      soundGeneration.current++;
+                      chimeAllowed.current = e.target.checked;
+                      setChimeEnabled(e.target.checked);
+                      if (!e.target.checked) chime.current?.cancel();
+                    }}
+                  />
+                  {c("chimeEnable", "Enable focus chime")}
+                </label>
+                <button
+                  disabled={!chimeEnabled}
+                  onClick={() => {
+                    soundGeneration.current++;
+                    setSoundMessage("");
+                    void chime.current?.prepare();
+                    void chime.current?.play(lockIn ? "locked" : "normal");
+                  }}
+                >
+                  Preview chime
+                </button>
+                <button
+                  onClick={() => {
+                    soundGeneration.current++;
+                    chime.current?.cancel();
+                  }}
+                >
+                  Stop chime
+                </button>
+                <p className="quiet-note">
+                  Quiet local cue on your own fresh Start only. Resume is silent. Fades to silence,
+                  not into Spotify; music uses its own manual Play control.
                 </p>
+                {soundMessage && (
+                  <p role="status" className="quiet-note">
+                    {soundMessage}
+                  </p>
+                )}
+              </section>
+            </WorkspaceSection>
+            <WorkspaceSection active={view} view="progress">
+              <CompletedSessions changeToken={completion?.id ?? ""} />
+              <PrivateReview
+                commitment={draft}
+                onFinish={() =>
+                  setPersonal((previous) => ({
+                    ...previous,
+                    remainingMs:
+                      previous.endsAt === null
+                        ? previous.remainingMs
+                        : Math.max(0, previous.endsAt - performance.now()),
+                    endsAt: null,
+                  }))
+                }
+                onNew={() => {
+                  sessionRef.current.personal = null;
+                  personalCredit.current = null;
+                  setCompletion(null);
+                  setStorageError("");
+                  setPersonal((previous) => ({
+                    ...previous,
+                    remainingMs: previous.durationMs,
+                    endsAt: null,
+                  }));
+                }}
+              />
+            </WorkspaceSection>
+            <WorkspaceSection active={view} view="together">
+              {party && !connected && (
+                <button className="reconnect" onClick={() => socket.current?.connect()}>
+                  Retry party connection
+                </button>
               )}
-            </section>
-            <CompletedSessions changeToken={completion?.id ?? ""} />
-            <PrivateReview
-              commitment={draft}
-              onFinish={() =>
-                setPersonal((previous) => ({
-                  ...previous,
-                  remainingMs:
-                    previous.endsAt === null
-                      ? previous.remainingMs
-                      : Math.max(0, previous.endsAt - performance.now()),
-                  endsAt: null,
-                }))
-              }
-              onNew={() =>
-                setPersonal((previous) => ({
-                  ...previous,
-                  remainingMs: previous.durationMs,
-                  endsAt: null,
-                }))
-              }
-            />
-            {party && !connected && (
-              <button className="reconnect" onClick={() => socket.current?.connect()}>
-                Retry party connection
-              </button>
-            )}
+            </WorkspaceSection>
           </main>
           <footer>
             {auth?.config?.required ? "Signed-in StudyRoom. " : "Local demo. "}Your own work, with
@@ -1381,6 +1450,11 @@ function SessionApp({ endpoint, welcome = false }: { endpoint?: string; welcome?
             onContinue={() => {
               roomAmbience.prepare();
               continueLastSession();
+            }}
+            onExplore={() => {
+              resumeFromPriorVisit.current = false;
+              closeWelcome(true);
+              navigate("guide");
             }}
             leaving={welcomeLeaving}
             onEnter={() => {

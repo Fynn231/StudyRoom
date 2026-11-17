@@ -1,3 +1,4 @@
+import { visibleFireEvent, visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
@@ -42,13 +43,21 @@ test("real account A to B React remount cannot carry selected plan completion co
   );
   const view = rtl.render(mount("A"));
   let q = rtl.within(view.container);
-  rtl.fireEvent.click(q.getByText("Saved study plans", { selector: "summary" }));
-  rtl.fireEvent.click(q.getByRole("button", { name: "Resume plan" }));
+  visitWorkspace(q, "plan");
+  visibleFireEvent(rtl.fireEvent).click(q.getByText("Saved study plans", { selector: "summary" }));
+  visibleFireEvent(rtl.fireEvent).click(
+    (visitWorkspace(q, "plan"), q.getByRole("button", { name: "Resume plan" })),
+  );
   view.rerender(mount("B"));
   q = rtl.within(view.container);
   assert.equal(view.container.textContent?.includes("A private selected copy"), false);
-  rtl.fireEvent.change(q.getByLabelText("Focus length"), { target: { value: "1" } });
-  rtl.fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+  visitWorkspace(q, "study");
+  visibleFireEvent(rtl.fireEvent).change(q.getByLabelText("Focus length"), {
+    target: { value: "1" },
+  });
+  visibleFireEvent(rtl.fireEvent).click(
+    (visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })),
+  );
   now = 60000;
   await rtl.act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 280));
@@ -97,22 +106,41 @@ for (const action of ["selected", "reload", "delete", "storage", "close", "remou
     ]);
     const view = rtl.render(<App key="first" />);
     let q = rtl.within(view.container);
-    rtl.fireEvent.click(q.getByText("Saved study plans", { selector: "summary" }));
-    rtl.fireEvent.click(q.getAllByRole("button", { name: "Resume plan" })[1]);
+    visitWorkspace(q, "plan");
+    visibleFireEvent(rtl.fireEvent).click(
+      q.getByText("Saved study plans", { selector: "summary" }),
+    );
+    visibleFireEvent(rtl.fireEvent).click(
+      (visitWorkspace(q, "plan"), q.getAllByRole("button", { name: "Resume plan" }))[1],
+    );
     if (action === "reload")
-      rtl.fireEvent.click(q.getByRole("button", { name: "Reload saved library" }));
+      visibleFireEvent(rtl.fireEvent).click(
+        (visitWorkspace(q, "plan"), q.getByRole("button", { name: "Reload saved library" })),
+      );
     if (action === "delete")
-      rtl.fireEvent.click(q.getAllByRole("button", { name: "Delete saved plan" })[1]);
+      visibleFireEvent(rtl.fireEvent).click(
+        (visitWorkspace(q, "plan"), q.getAllByRole("button", { name: "Delete saved plan" }))[1],
+      );
     if (action === "storage")
-      rtl.fireEvent(window, new dom.window.StorageEvent("storage", { key: STUDY_PLANS_KEY }));
+      visibleFireEvent(rtl.fireEvent)(
+        window,
+        new dom.window.StorageEvent("storage", { key: STUDY_PLANS_KEY }),
+      );
     if (action === "close")
-      rtl.fireEvent.click(q.getByRole("button", { name: "Close resumed plan" }));
+      visibleFireEvent(rtl.fireEvent).click(
+        (visitWorkspace(q, "plan"), q.getByRole("button", { name: "Close resumed plan" })),
+      );
     if (action === "remount") {
       view.rerender(<App key="second" />);
       q = rtl.within(view.container);
     }
-    rtl.fireEvent.change(q.getByLabelText("Focus length"), { target: { value: "1" } });
-    rtl.fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+    visitWorkspace(q, "study");
+    visibleFireEvent(rtl.fireEvent).change(q.getByLabelText("Focus length"), {
+      target: { value: "1" },
+    });
+    visibleFireEvent(rtl.fireEvent).click(
+      (visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })),
+    );
     now = 60000;
     await rtl.act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 280));

@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 test("upfront guide tabs support keyboard, open the right tool, and preserve private work on phone", async ({
   page,
 }, info) => {
@@ -10,8 +11,11 @@ test("upfront guide tabs support keyboard, open the right tool, and preserve pri
   await page
     .getByLabel("Your session intention", { exact: true })
     .fill("Private navigation continuity fixture");
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
+  await visitWorkspace(page, "Guide");
   const tabs = page.getByRole("tablist", { name: "Study Room quick guide" });
   await expect(tabs).toBeVisible();
   await expect(tabs.getByRole("tab")).toHaveCount(6);
@@ -22,14 +26,17 @@ test("upfront guide tabs support keyboard, open the right tool, and preserve pri
   await page.getByRole("button", { name: "Import notes", exact: true }).click();
   await expect(page.locator(".goal-panel")).toHaveAttribute("open", "");
   await expect(page.locator(".goal-panel > summary")).toBeFocused();
+  await visitWorkspace(page, "Guide");
   await tabs.getByRole("tab", { name: "Music", exact: true }).click();
   await page.getByRole("button", { name: "Open music", exact: true }).click();
   await expect(page.locator(".music-panel")).toHaveAttribute("open", "");
+  await visitWorkspace(page, "Guide");
   await tabs.getByRole("tab", { name: "Privacy", exact: true }).click();
   await expect(page.getByRole("tabpanel")).toContainText("not encrypted");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".quick-guide").screenshot({ path: info.outputPath("quick-guide-phone.png") });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await visitWorkspace(page, "Study");
   await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
     "Private navigation continuity fixture",
   );

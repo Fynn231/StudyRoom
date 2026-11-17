@@ -12,7 +12,10 @@ export function useWelcome(enabled: boolean) {
     }
   });
   const [open, setOpen] = useState(
-    () => enabled && !new URL(window.location.href).searchParams.has("room"),
+    () =>
+      enabled &&
+      !new URL(window.location.href).searchParams.has("room") &&
+      !new URL(window.location.href).searchParams.has("view"),
   );
   const [leaving, setLeaving] = useState(false);
   const dismissed = useRef(false),
@@ -60,10 +63,12 @@ export function WelcomeScene({
   returning = false,
   canContinue = false,
   onContinue,
+  onExplore,
 }: {
   returning?: boolean;
   canContinue?: boolean;
   onContinue?: () => void;
+  onExplore?: () => void;
   leaving: boolean;
   onEnter: () => void;
   onEscape?: () => void;
@@ -146,6 +151,11 @@ export function WelcomeScene({
                 : "Continue to Study Room"
               : "Continue to Study Room"}
           </button>
+          {onExplore && (
+            <button disabled={leaving} onClick={onExplore}>
+              Explore features & walkthrough
+            </button>
+          )}
         </div>
         {sound}
       </div>

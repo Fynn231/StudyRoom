@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 import AxeBuilder from "@axe-core/playwright";
 async function ready(page: Page) {
   await page.goto("/");
@@ -69,7 +70,9 @@ for (const [name, width, height] of [
         await page.evaluate(() => document.documentElement.scrollWidth - innerWidth),
       ).toBeLessThanOrEqual(1);
     await overflow();
+    await visitWorkspace(page, "Music");
     await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+    await visitWorkspace(page, "Study");
     await page.getByLabel("Your session intention", { exact: true }).fill("One quiet chapter");
     await page.getByRole("button", { name: "Start focus", exact: true }).click();
     const appearance = page.locator(".appearance > summary");
@@ -124,11 +127,13 @@ for (const [name, width, height] of [
     ).toEqual([]);
     // Match the existing delivery helper: manual Silent prevents provider-owned
     // iframe markup from being confused with an app accessibility regression.
+    await visitWorkspace(page, "Music");
     await page
       .locator("summary")
       .filter({ hasText: /^Music$/ })
       .click();
     await page.getByLabel("Silent mode", { exact: true }).check();
+    await visitWorkspace(page, "Study");
     await page.locator("main").focus();
     await page.keyboard.type("lllll", { delay: 30 });
     await expect(page.locator(".lock-in-mode")).toBeVisible();

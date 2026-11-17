@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -14,8 +15,9 @@ test('one collapsed How to use entry follows the focus surface and explains deli
   const help = summary.closest('details')!;
   assert.equal(view.container.querySelectorAll('.help-panel').length, 1);
   assert.equal(help.open, false);
-  assert.ok(help.parentElement?.classList.contains('workspace-tools'));
-  assert.ok(help.compareDocumentPosition(q.getByRole('timer')) & dom.window.Node.DOCUMENT_POSITION_PRECEDING);
+  assert.equal(help.closest<HTMLElement>('[data-workspace-view]')?.dataset.workspaceView, 'guide');
+  assert.equal(view.container.querySelectorAll('[role=timer]').length, 1);
+  visitWorkspace(q, 'guide');
   assert.equal(help.querySelectorAll('details').length, 0);
   assert.equal(view.container.querySelector('a[href="#help-setup"]'), null);
   fireEvent.click(summary);
@@ -25,10 +27,11 @@ test('one collapsed How to use entry follows the focus surface and explains deli
   assert.ok(help.textContent?.includes('Typing an intention does not build a plan, start the timer or share it'));
   for (const text of ['Shift+Enter', 'Plan session', 'Benchmarks', 'Time allocation', 'Skip', 'Edit saved plan']) assert.ok(help.textContent?.includes(text),text);
   assert.equal(help.textContent?.includes('Enter in an intention adds a line'),false);
-  assert.equal(q.getByRole('timer').textContent, '25:00');
+  assert.equal((visitWorkspace(q, "study"), q.getByRole('timer')).textContent, '25:00');
   assert.equal((q.getByLabelText('Your session intention') as HTMLTextAreaElement).value, '');
   assert.equal(dom.window.localStorage.length, 0);
-  fireEvent.click(summary); assert.equal(help.open, false);
+  visitWorkspace(q, 'guide'); fireEvent.click(summary); assert.equal(help.open, false);
+  visitWorkspace(q, 'plan');
   fireEvent.click(q.getByText('Goals / notes', { selector: 'summary' }));
   assert.equal(view.container.querySelector('.goal-panel .help-panel'), null);
   fireEvent.change(q.getByLabelText('Choose Markdown notes'), { target: { files: [new dom.window.File(['bad'], 'not-markdown.txt')] } });

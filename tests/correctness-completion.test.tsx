@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
@@ -35,13 +36,17 @@ test("restored paused timer credits only resumed remaining time once, preserving
   const view = rtl.render(<App welcome />),
     q = rtl.within(view.container);
   rtl.fireEvent.click(q.getByRole("button", { name: /Continue last session/i }));
-  assert.equal(q.getByRole("timer").textContent, "01:00");
+  assert.equal((visitWorkspace(q, "study"), q.getByRole("timer")).textContent, "01:00");
   assert.equal(loadSessions(dom.window.localStorage).sessions.length, 0);
-  rtl.fireEvent.click(q.getByRole("button", { name: "Resume focus" }));
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "study"), q.getByRole("button", { name: "Resume focus" })),
+  );
   now = 10000;
-  rtl.fireEvent.click(q.getByRole("button", { name: "Pause focus" }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole("button", { name: "Pause focus" })));
   now = 90000;
-  rtl.fireEvent.click(q.getByRole("button", { name: "Resume focus" }));
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "study"), q.getByRole("button", { name: "Resume focus" })),
+  );
   now = 140000;
   await rtl.act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 280));
@@ -91,20 +96,29 @@ test("personal completion is saved while room is displayed and peer-started room
     ),
     q = rtl.within(view.container);
   rtl.fireEvent.change(q.getByLabelText("Focus length"), { target: { value: "1" } });
-  rtl.fireEvent.click(q.getByRole("button", { name: "Start focus" }));
-  rtl.fireEvent.click(q.getByRole("button", { name: "Party" }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })));
+  rtl.fireEvent.click((visitWorkspace(q, "together"), q.getByRole("button", { name: "Party" })));
   await rtl.waitFor(() =>
     assert.equal(
-      (q.getByRole("button", { name: "Join room" }) as HTMLButtonElement).disabled,
+      (
+        (visitWorkspace(q, "together"),
+        q.getByRole("button", { name: "Join room" })) as HTMLButtonElement
+      ).disabled,
       false,
     ),
   );
   rtl.fireEvent.change(q.getByLabelText("Your name"), { target: { value: "Test" } });
   rtl.fireEvent.change(q.getByLabelText("Invite code"), { target: { value: "ABC123" } });
-  rtl.fireEvent.click(q.getByRole("button", { name: "Join room" }));
-  await rtl.waitFor(() => assert.ok(q.getByRole("button", { name: "Join room cycle" })));
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "together"), q.getByRole("button", { name: "Join room" })),
+  );
+  await rtl.waitFor(() =>
+    assert.ok((visitWorkspace(q, "study"), q.getByRole("button", { name: "Join room cycle" }))),
+  );
   now = 30000;
-  rtl.fireEvent.click(q.getByRole("button", { name: "Join room cycle" }));
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "study"), q.getByRole("button", { name: "Join room cycle" })),
+  );
   now = 60000;
   await rtl.act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 280));
@@ -121,6 +135,20 @@ test("personal completion is saved while room is displayed and peer-started room
     "clock selection must not double-credit overlapping personal/room time",
   );
   rtl.fireEvent.keyDown(document, { key: "Escape" });
+  visitWorkspace(q, "progress");
+  rtl.fireEvent.click(q.getByRole("button", { name: "Finish privately" }));
+  rtl.fireEvent.click(q.getByRole("button", { name: "Save private reflection" }));
+  rtl.fireEvent.click(q.getByRole("button", { name: "New private session" }));
+  visitWorkspace(q, "study");
+  now = 90000;
+  await rtl.act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 280));
+  });
+  assert.equal(
+    q.getByRole("timer").textContent,
+    "00:30",
+    "new private cycle does not reset or select away from the running room clock",
+  );
   now = 120000;
   await rtl.act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 280));
@@ -167,18 +195,27 @@ test("peer starts a differently configured room cycle without crediting the old 
       <App endpoint={`http://127.0.0.1:${(server.address() as { port: number }).port}`} />,
     ),
     q = rtl.within(view.container);
-  rtl.fireEvent.click(q.getByRole("button", { name: "Party" }));
+  rtl.fireEvent.click((visitWorkspace(q, "together"), q.getByRole("button", { name: "Party" })));
   await rtl.waitFor(() =>
     assert.equal(
-      (q.getByRole("button", { name: "Join room" }) as HTMLButtonElement).disabled,
+      (
+        (visitWorkspace(q, "together"),
+        q.getByRole("button", { name: "Join room" })) as HTMLButtonElement
+      ).disabled,
       false,
     ),
   );
   rtl.fireEvent.change(q.getByLabelText("Your name"), { target: { value: "Test" } });
   rtl.fireEvent.change(q.getByLabelText("Invite code"), { target: { value: "ABC123" } });
-  rtl.fireEvent.click(q.getByRole("button", { name: "Join room" }));
-  await rtl.waitFor(() => assert.ok(q.getByRole("button", { name: "Join room cycle" })));
-  rtl.fireEvent.click(q.getByRole("button", { name: "Join room cycle" }));
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "together"), q.getByRole("button", { name: "Join room" })),
+  );
+  await rtl.waitFor(() =>
+    assert.ok((visitWorkspace(q, "study"), q.getByRole("button", { name: "Join room cycle" }))),
+  );
+  rtl.fireEvent.click(
+    (visitWorkspace(q, "study"), q.getByRole("button", { name: "Join room cycle" })),
+  );
   await rtl.act(async () => {
     io.emit("room:state", {
       ...state,
@@ -219,7 +256,7 @@ test("completed checkpoint restores zero paused rather than silently starting a 
   const view = rtl.render(<App welcome />),
     q = rtl.within(view.container);
   rtl.fireEvent.click(q.getByRole("button", { name: /Continue last session/i }));
-  assert.equal(q.getByRole("timer").textContent, "00:00");
+  assert.equal((visitWorkspace(q, "study"), q.getByRole("timer")).textContent, "00:00");
   assert.equal(loadSessions(dom.window.localStorage).sessions.length, 0);
 });
 
@@ -252,7 +289,7 @@ test("failed checkpoint write keeps prior checkpoint and gives honest unsaved ti
     q = rtl.within(view.container);
   rtl.fireEvent.click(q.getByRole("button", { name: "Continue to Study Room" }));
   rtl.fireEvent.change(q.getByLabelText("Focus length"), { target: { value: "1" } });
-  rtl.fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+  rtl.fireEvent.click((visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })));
   assert.equal(dom.window.localStorage.getItem(CHECKPOINT_KEY), prior);
   assert.match(view.container.textContent ?? "", /timer checkpoint could not be saved/i);
 });

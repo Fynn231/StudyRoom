@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -25,9 +26,9 @@ test('ten labeled preview presets include private Juliette flowers with explicit
   fireEvent.click(q.getByText('Appearance', { selector: 'summary' }));
   assert.equal(PRESETS.length, 10);
   assert.equal(view.container.querySelectorAll('.preset-swatch').length, 10);
-  const timer = q.getByRole('timer'), draft = q.getByLabelText('Your session intention');
+  const timer = (visitWorkspace(q, "study"), q.getByRole('timer')), draft = q.getByLabelText('Your session intention');
   fireEvent.change(draft, { target: { value: 'Synthetic flowers draft' } });
-  fireEvent.click(q.getByRole('button', { name: 'Start focus' }));
+  fireEvent.click((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Start focus' })));
   fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
   const layer = view.container.querySelector<HTMLElement>('.flower-layer')!;
   assert.ok(layer); assert.equal(layer.getAttribute('aria-hidden'), 'true');
@@ -64,9 +65,9 @@ test('ten labeled preview presets include private Juliette flowers with explicit
   fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
   fireEvent.click(q.getByRole('button', { name: 'Reset appearance to white and sage' }));
   assert.equal(view.container.querySelector('.flower-layer'), null);
-  assert.equal(q.getByRole('timer'), timer); assert.equal(q.getByLabelText('Your session intention'), draft);
+  assert.equal((visitWorkspace(q, "study"), q.getByRole('timer')), timer); assert.equal(q.getByLabelText('Your session intention'), draft);
   assert.equal((draft as HTMLTextAreaElement).value, 'Synthetic flowers draft');
-  assert.ok(q.getByRole('button', { name: 'Pause focus' }));
+  assert.ok((visitWorkspace(q, "study"), q.getByRole('button', { name: 'Pause focus' })));
   assert.equal(dom.window.localStorage.length, 0);
   fireEvent.click(q.getByRole('button', { name: 'Juliette' }));
   assert.equal(activeVisibility.size, 1);

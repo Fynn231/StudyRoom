@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit";
 
 async function enter(page: import("@playwright/test").Page) {
   await page.goto("/");
@@ -48,7 +49,9 @@ test("Home Continue fades while retaining live timer and draft", async ({ page }
   const timer = await page.getByRole("timer").elementHandle();
   const draft = await page.getByLabel("Your session intention", { exact: true }).elementHandle();
   await page.getByLabel("Your session intention", { exact: true }).fill("Live Home draft");
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
   await page.getByRole("button", { name: "Home", exact: true }).click();
   await page.getByRole("button", { name: "Continue last session", exact: true }).click();
@@ -85,6 +88,7 @@ for (const width of [1440, 1198, 1024, 768, 390, 360])
   test(`normal Focus guide controls after locked return ${width}`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 960 });
     await enter(page);
+    await visitWorkspace(page, "Guide");
     await page.getByRole("tab", { name: "Focus", exact: true }).click();
     const before = await page.getByLabel("Quick optional rain", { exact: true }).boundingBox();
     expect(before!.width).toBeLessThanOrEqual(24);
@@ -96,6 +100,7 @@ for (const width of [1440, 1198, 1024, 768, 390, 360])
     await expect(page.locator(".lock-in-mode")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(page.locator(".lock-in-mode")).toHaveCount(0);
+    await visitWorkspace(page, "Guide");
     await page.getByRole("tab", { name: "Focus", exact: true }).click();
     await page.waitForTimeout(2200); // Inspect settled rendering, not the native transition snapshot.
     const selectedTab = page.getByRole("tab", { name: "Focus", exact: true });
@@ -176,10 +181,13 @@ test("checkpoint reload fades into paused timer and reduced motion returns immed
   page,
 }, info) => {
   await enter(page);
+  await visitWorkspace(page, "Music");
   await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Start focus", exact: true }).click();
   await page.waitForTimeout(1300);
-  await page.reload();
+  // Reload the Home entry URL: native workspace visits now retain an explicit ?view= route.
+  await page.goto("/");
   await page.getByRole("button", { name: "Continue last session", exact: true }).click();
   await page.waitForFunction(() => {
     const e = document.querySelector(".welcome-scene");

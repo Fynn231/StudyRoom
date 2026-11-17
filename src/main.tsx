@@ -11,6 +11,7 @@ import "./normal-atmosphere.css";
 import "./water-ripples.css";
 import "./workspace.css";
 import "./immersive.css";
+import "./workspace-navigation.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -11,8 +11,8 @@ export function HowStudyRoomWorks() {
         <p>
           Start small: write an intention, optionally press{" "}
           <strong>{c("planSession", "Plan session")}</strong>, then choose{" "}
-          <strong>Start focus</strong> when ready. Or turn a Markdown task list into a plan below.
-          Home reopens the welcome scene without resetting your work.
+          <strong>Start focus</strong> when ready. Or turn a Markdown task list into a plan on the
+          Plan page. Home reopens the welcome scene without resetting your work.
         </p>
         <ol className="help-steps">
           <li>
@@ -82,7 +82,7 @@ export function HowStudyRoomWorks() {
             : "Enter in an intention opens optional planning help;"}{" "}
           Shift+Enter adds a line. Neither starts focus. Up / Down buttons reorder steps without
           dragging. Opening this guide never saves, shares or calls AI. Close it whenever you like;
-          How to use stays here near the header.
+          How to use stays on the Guide page.
         </p>
       </div>
     </details>

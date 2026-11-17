@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit";
 async function observe(page: Page, blocked = false) {
   await page.addInitScript((blocked) => {
     const w = window as any;
@@ -40,7 +41,9 @@ async function observe(page: Page, blocked = false) {
 const entry = (page: Page) =>
   page.getByRole("button", { name: /^Continue (?:to Study Room|last session)$/ });
 async function panel(page: Page) {
-  await page.locator(".ambience-panel > summary").click();
+  await visitWorkspace(page, "Music");
+  if (!(await page.locator(".ambience-panel").evaluate((e) => (e as HTMLDetailsElement).open)))
+    await page.locator(".ambience-panel > summary").click();
 }
 async function gain(page: Page) {
   return page.evaluate(() => (window as any).__roomAudio.master.gain.value);
@@ -91,6 +94,7 @@ test("default-policy audio entry, native music readiness, welcome mute and navig
   ).toBe(true);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Study");
   await page.locator(".focus-setup > summary").click();
   await page.getByRole("button", { name: "Enter focus view", exact: true }).click();
   await page.getByRole("button", { name: "Exit focus view", exact: true }).click();
@@ -102,6 +106,7 @@ test("default-policy audio entry, native music readiness, welcome mute and navig
   for (let i = 0; i < 5; i++) await page.keyboard.press("n");
   await expect(page.locator(".lock-in-mode")).toHaveCount(0);
   await expect.poll(() => gain(page)).toBeGreaterThan(normal * 0.95);
+  await panel(page);
   await page.getByLabel("Optional rain", { exact: true }).check();
   await expect.poll(() => page.evaluate(() => (window as any).__roomAudio.sources.length)).toBe(4);
   await page.getByLabel("Optional rain", { exact: true }).uncheck();
@@ -115,7 +120,8 @@ test("default-policy audio entry, native music readiness, welcome mute and navig
   await expect
     .poll(() => page.evaluate(() => (window as any).__roomAudio.contexts[0].state))
     .toBe("closed");
-  await page.reload();
+  // Reload the Home entry URL rather than the retained Music deep link.
+  await page.goto("/");
   await expect(page.getByRole("button", { name: "Mute room audio", exact: true })).toBeVisible();
   expect(await page.evaluate(() => (window as any).__roomAudio.contexts.length)).toBe(0);
   await entry(page).click();
@@ -184,6 +190,7 @@ test("unsupported audio remains recoverable without affecting focus", async ({ p
   await panel(page);
   await page.getByRole("button", { name: "Play room audio", exact: true }).click();
   await expect(page.locator(".ambience-panel [role=status]")).toContainText("unavailable");
+  await visitWorkspace(page, "Study");
   await expect(page.getByRole("timer")).toHaveText("25:00");
 });
 test("missing asset reports unavailable without trapping entry or retry", async ({ page }) => {
@@ -202,6 +209,7 @@ test("missing asset reports unavailable without trapping entry or retry", async 
   await page.getByRole("button", { name: "Play room audio", exact: true }).click();
   await expect.poll(() => requests).toBe(2);
   await expect(page.locator(".ambience-panel [role=status]")).toContainText("unavailable");
+  await visitWorkspace(page, "Study");
   await expect(page.getByRole("timer")).toHaveText("25:00");
 });
 
@@ -222,14 +230,18 @@ for (const permitted of [false, true]) {
       await expect(page.locator(".ambience-panel [role=status]")).toContainText(
         "paused by your browser",
       );
+      await visitWorkspace(page, "Together");
       await page.evaluate(() => ((window as any).__allowResume = true));
       await page.getByLabel("Your name", { exact: true }).click();
+      await panel(page);
     }
     await expect(page.locator(".ambience-panel [role=status]")).toContainText(
       "Wind over the Reading Terrace is playing.",
     );
     await expect.poll(() => gain(page)).toBeGreaterThan(0.29);
+    await visitWorkspace(page, "Study");
     await expect(page.getByRole("timer")).toHaveText("25:00");
+    await visitWorkspace(page, "Together");
     await expect(page.getByRole("button", { name: "Join room", exact: true })).toBeEnabled();
     const data = await page.evaluate(() => {
       const a = (window as any).__roomAudio;

@@ -1,0 +1,179 @@
+.quick-guide > summary {
+  min-block-size: 44px;
+  padding-block: 11px;
+  line-height: 1.5;
+}
+.duration-field small {
+  font-size: 0.75rem;
+}
+/* Native fieldsets otherwise retain a min-content width on the narrow Plan page. */
+.workspace-section .hybrid-planner fieldset {
+  min-inline-size: 0;
+}
+.workspace-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  border-bottom: 1px solid var(--line, #a9b9a3);
+  padding: 8px 0 12px;
+  margin-bottom: 24px;
+}
+.workspace-navigation a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 15px;
+  color: inherit;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+}
+.workspace-navigation a[aria-current="page"] {
+  background: var(--ink, #263b2e);
+  color: var(--paper, #faf9f3);
+}
+.workspace-navigation a:focus-visible,
+.workspace-navigation a:hover {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.workspace-section[hidden] {
+  display: none !important;
+}
+.feature-page-intro {
+  max-width: 760px;
+  margin: 0 0 28px;
+}
+.feature-page-intro h1 {
+  font-size: clamp(30px, 5vw, 48px);
+  margin: 8px 0 12px;
+}
+.feature-page-intro p {
+  line-height: 1.65;
+}
+.feature-page-intro-study {
+  margin-bottom: 20px;
+}
+.feature-page-intro-study .quiet-note {
+  max-width: 640px;
+}
+.room-backdrop .session-grid {
+  display: block;
+}
+.room-backdrop .study-clock {
+  margin-bottom: 20px;
+}
+.room-backdrop .workspace-tools {
+  display: block;
+}
+.room-backdrop .workspace-tools > * {
+  margin-bottom: 18px;
+}
+.room-backdrop .session-tools {
+  justify-content: flex-end;
+  margin-bottom: 20px;
+}
+.room-backdrop .session-tools .workspace-section {
+  margin-right: auto;
+}
+.walkthrough-panel {
+  padding: 20px 24px;
+  margin: 0 0 24px;
+  border: 1px solid var(--line, #a9b9a3);
+  background: var(--surface, #f8f8ef);
+  color: var(--ink, #263b2e);
+  border-radius: 12px;
+}
+.walkthrough-panel h2 {
+  margin: 6px 0;
+}
+.walkthrough-panel p {
+  line-height: 1.6;
+  max-width: 760px;
+}
+.walkthrough-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.walkthrough-actions button,
+.walkthrough-start {
+  min-height: 44px;
+}
+.room-backdrop:not([data-active-view="guide"]) .walkthrough-start {
+  display: none;
+}
+/* Focus is a retained presentation preference, not permission to hide another page. */
+.focus-view .workspace-section:not([hidden]) .goal-panel,
+.focus-view .workspace-section:not([hidden]) .workspace-tools,
+.focus-view .workspace-section:not([hidden]) .music-panel,
+.focus-view .workspace-section:not([hidden]) .ambience-panel,
+.focus-view .workspace-section:not([hidden]) .help-panel,
+.focus-view .workspace-section:not([hidden]) .spotify-listening-setup,
+.focus-view .workspace-section:not([hidden]) .private-review,
+.focus-view .workspace-section:not([hidden]) .quick-guide,
+.focus-view .workspace-section:not([hidden]) .focus-setup,
+.focus-view .workspace-section:not([hidden]) .chime-controls,
+.focus-view .workspace-section:not([hidden]) .people-surface,
+.focus-view .workspace-section:not([hidden]) .party-lobby,
+.focus-view .session-tools {
+  display: block;
+}
+.focus-view .session-tools {
+  display: flex;
+}
+@media (max-width: 600px) {
+  .workspace-navigation {
+    gap: 4px;
+    margin-bottom: 20px;
+  }
+  .workspace-navigation a {
+    flex: 1 0 28%;
+    padding: 8px;
+  }
+  .feature-page-intro h1 {
+    font-size: 32px;
+  }
+  .feature-page-intro p {
+    font-size: 14px;
+  }
+  .walkthrough-panel {
+    padding: 16px;
+  }
+  .walkthrough-actions button {
+    flex: 1 1 42%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-navigation *,
+  .walkthrough-panel {
+    scroll-behavior: auto;
+  }
+}
+
+/* Study focus exposes existing reviewed plans, not a second planning owner. */
+.focus-view[data-active-view="study"] .session-tools,
+.focus-view[data-active-view="study"]:not([data-focus-options]) .focus-setup {
+  display: none;
+}
+.focus-view
+  .focus-planning
+  > :not(.session-plan):not(.saved-study-plans):not(.saved-plans-error):not([role="status"]):not(
+    [role="alert"]
+  ),
+.focus-view .focus-planning .session-plan > label,
+.focus-view .focus-planning .session-plan > textarea,
+.focus-view .focus-planning .session-plan > button,
+.focus-view .focus-planning .save-study-plan,
+.focus-view
+  .focus-planning
+  .saved-study-plans
+  > :not(.resumed-study-plan):not([role="status"]):not([role="alert"]) {
+  display: none;
+}
+
+.focus-view .workspace-section:not([hidden])[data-workspace-view="together"] .page-heading {
+  display: block;
+}

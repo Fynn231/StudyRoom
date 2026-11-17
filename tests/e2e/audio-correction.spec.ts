@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 
 // Real app, local soundtrack, Web Audio graph and trusted browser interactions.
 // Spotify status/SDK are SYNTHETIC boundaries, not OAuth, Premium or audible Spotify proof.
@@ -60,6 +61,7 @@ test("owner Spotify playback closes actual soundtrack and rain; trusted gestures
   await expect(page.locator("dialog[open]")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Music");
   const room = page.locator(".ambience-panel");
   await room.locator(":scope > summary").click();
   await expect(room.getByRole("status")).toContainText("is playing.");
@@ -94,11 +96,13 @@ test("owner Spotify playback closes actual soundtrack and rain; trusted gestures
   await page.locator("button.wordmark").focus();
   for (let i = 0; i < 5; i++) await page.keyboard.press("n");
   await expect(page.locator(".lock-in-mode")).toHaveCount(0);
+  await visitWorkspace(page, "Guide");
   await page.getByRole("tab", { name: "Focus", exact: true }).click();
   await page.getByRole("button", { name: "Focus options", exact: true }).click();
   await page.getByRole("button", { name: "Enter focus view", exact: true }).click();
   await expect(page.locator(".focus-view")).toHaveCount(1);
   await page.getByRole("button", { name: "Exit focus view", exact: true }).click();
+  await visitWorkspace(page, "Music");
   await room.getByRole("button", { name: "Show welcome again", exact: true }).click();
   await page.getByRole("button", { name: /Continue/, exact: false }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -170,6 +174,7 @@ test("synthetic SDK confirms playback only by state; deliberate embed switch sto
   await expect(page.locator("dialog[open]")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Music");
   await page.locator(".ambience-panel > summary").click();
   const room = page.locator(".ambience-panel");
   await expect(room.getByRole("status")).toContainText("is playing.");

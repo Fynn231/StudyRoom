@@ -1,3 +1,4 @@
+import { visibleFireEvent, visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
@@ -105,18 +106,25 @@ test("Blue Hour mounts its own water layer without replacing the running timer o
     HTMLElement: dom.window.HTMLElement,
     IS_REACT_ACT_ENVIRONMENT: true,
   });
-  const { render, fireEvent, within, cleanup } = await import("@testing-library/react");
+  const {
+    render,
+    fireEvent: rawFireEvent,
+    within,
+    cleanup,
+  } = await import("@testing-library/react");
+  const fireEvent = visibleFireEvent(rawFireEvent);
   t.after(() => {
     cleanup();
     dom.window.close();
   });
   const view = render(<App />),
     q = within(view.container);
-  const timer = q.getByRole("timer"),
+  const timer = (visitWorkspace(q, "study"), q.getByRole("timer")),
     draft = q.getByLabelText("Your session intention") as HTMLTextAreaElement;
   fireEvent.change(draft, { target: { value: "A quiet chapter by the water" } });
+  visitWorkspace(q, "music");
   fireEvent.click(q.getByLabelText("Enable focus chime"));
-  fireEvent.click(q.getByRole("button", { name: "Start focus" }));
+  fireEvent.click((visitWorkspace(q, "study"), q.getByRole("button", { name: "Start focus" })));
   fireEvent.click(q.getByText("Appearance", { selector: "summary" }));
   fireEvent.click(q.getByRole("button", { name: "Blue Hour" }));
   assert.ok(
@@ -124,10 +132,10 @@ test("Blue Hour mounts its own water layer without replacing the running timer o
     "Blue Hour should own a distinct water ripple layer",
   );
   assert.equal(view.container.querySelector(".natural-flowers"), null);
-  assert.equal(q.getByRole("timer"), timer);
+  assert.equal((visitWorkspace(q, "study"), q.getByRole("timer")), timer);
   assert.equal(q.getByLabelText("Your session intention"), draft);
   assert.equal(draft.value, "A quiet chapter by the water");
-  assert.ok(q.getByRole("button", { name: "Pause focus" }));
+  assert.ok((visitWorkspace(q, "study"), q.getByRole("button", { name: "Pause focus" })));
   fireEvent.click(q.getByLabelText("Water ripples"));
   assert.ok(view.container.querySelector(".water-ripples"));
   fireEvent.click(q.getByRole("button", { name: /^Sage$/ }));

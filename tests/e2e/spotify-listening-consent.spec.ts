@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 
 // Real Study Room browser interaction with a synthetic provider boundary only.
 // This fixture never grants Spotify consent and is not real OAuth/audio proof.
@@ -38,6 +39,7 @@ test("listening Connect opens read-only consent directly without playback takeov
   await page
     .getByLabel("Your session intention", { exact: true })
     .fill("Private listening test draft");
+  await visitWorkspace(page, "Music");
   await page.getByText("Your Spotify listening status", { exact: true }).click();
   const opened = context.waitForEvent("page", { timeout: 5000 });
   await page.getByRole("button", { name: "Connect Spotify listening status", exact: true }).click();
@@ -45,7 +47,8 @@ test("listening Connect opens read-only consent directly without playback takeov
   await expect(consent).toHaveURL(/^https:\/\/accounts\.spotify\.com\/authorize\?/);
   await expect(consent.locator("body")).toContainText("Synthetic listening consent fixture");
   await expect.poll(() => begins).toBe(1);
-  await expect(page).toHaveURL("http://127.0.0.1:4285/");
+  await expect(page).toHaveURL("http://127.0.0.1:4285/?view=music");
+  await visitWorkspace(page, "Study");
   await expect(page.getByRole("timer")).toHaveText("37:00");
   await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
     "Private listening test draft",
@@ -83,6 +86,7 @@ test("disconnect cancels a pending consent window and ignores its late response"
   await expect(page.locator("dialog[open]")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Music");
   await page.getByText("Your Spotify listening status", { exact: true }).click();
   const opened = context.waitForEvent("page");
   await page.getByRole("button", { name: "Connect Spotify listening status", exact: true }).click();

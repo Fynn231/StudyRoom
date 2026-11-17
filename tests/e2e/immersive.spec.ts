@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 import AxeBuilder from "@axe-core/playwright";
 for (const width of [1440, 390])
   test(`welcome and continuous mode transitions at ${width}px`, async ({ page }, info) => {
@@ -19,7 +20,9 @@ for (const width of [1440, 390])
     await expect(welcome).toHaveAttribute("data-leaving", "true");
     await expect(welcome).toHaveCount(0);
     await expect(page.locator("#main")).toBeFocused();
+    await visitWorkspace(page, "Music");
     await page.getByLabel("Enable focus chime", { exact: true }).uncheck();
+    await visitWorkspace(page, "Study");
     const timer = await page.getByRole("timer").elementHandle();
     await page
       .getByLabel("Your session intention", { exact: true })
@@ -71,6 +74,7 @@ for (const width of [1440, 390])
     await expect(page.locator(".environment-wash")).toHaveCSS("opacity", "0");
     expect(await timer!.evaluate((e) => e.isConnected)).toBe(true);
     await page.getByRole("button", { name: "Pause focus", exact: true }).click();
+    await visitWorkspace(page, "Music");
     await page
       .locator("summary")
       .filter({ hasText: /^Room ambience$/ })
@@ -79,10 +83,12 @@ for (const width of [1440, 390])
     await expect(welcome).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(welcome).toHaveCount(0);
+    await visitWorkspace(page, "Study");
     await expect(page.getByLabel("Your session intention", { exact: true })).toHaveValue(
       "Synthetic transition continuity",
     );
-    await page.reload();
+    // Return to the original root for the fresh-visit Home checkpoint.
+    await page.goto("/");
     await expect(page.getByRole("timer")).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Welcome back to your study room." }),
@@ -90,6 +96,7 @@ for (const width of [1440, 390])
     await page.getByRole("button", { name: "Continue last session", exact: true }).click();
     await expect(welcome).toHaveCount(0);
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await visitWorkspace(page, "Music");
     await page
       .locator("summary")
       .filter({ hasText: /^Room ambience$/ })
@@ -102,6 +109,7 @@ for (const width of [1440, 390])
     ).toBe(true);
     await page.getByRole("button", { name: "Continue last session", exact: true }).click();
     await expect(welcome).toHaveCount(0);
+    await visitWorkspace(page, "Study");
     await page
       .getByLabel("Your session intention", { exact: true })
       .fill("Reduced-motion return continuity");

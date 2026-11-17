@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 
 for (const width of [1366, 390])
   test(`${width} nested profile disclosure preserves native popup accessibility in every view`, async ({
@@ -35,6 +36,7 @@ for (const width of [1366, 390])
       }
       for (const focusView of [false, true]) {
         if (focusView) {
+          await visitWorkspace(page, "Guide");
           await page.getByRole("tab", { name: "Focus", exact: true }).click();
           await page.getByRole("button", { name: "Focus options", exact: true }).click();
           await page.getByRole("button", { name: "Enter focus view", exact: true }).click();
@@ -212,6 +214,7 @@ for (const width of [1366, 390])
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 
       // Header access must expose the real editor even when Focus view hides tools.
+      await visitWorkspace(page, "Guide");
       await page.getByRole("tab", { name: "Focus", exact: true }).click();
       await page.getByRole("button", { name: "Focus options", exact: true }).click();
       await page.getByRole("button", { name: "Enter focus view", exact: true }).click();
@@ -232,6 +235,7 @@ for (const width of [1366, 390])
       await expect(page.locator(".room-backdrop")).toHaveClass(/focus-view/);
       await page.getByRole("button", { name: "Exit focus view", exact: true }).click();
     }
+    await visitWorkspace(page, "Guide");
     await page.getByRole("tab", { name: "Profile", exact: true }).click();
     await page.getByRole("button", { name: "Your profile", exact: true }).click();
     await expect(
@@ -261,6 +265,7 @@ for (const width of [1366, 390])
     const panel = page.getByRole("dialog", { name: "Profile and account", exact: true });
     for (const focusView of [false, true]) {
       if (focusView) {
+        await visitWorkspace(page, "Guide");
         await page.getByRole("tab", { name: "Focus", exact: true }).click();
         await page.getByRole("button", { name: "Focus options", exact: true }).click();
         await page.getByRole("button", { name: "Enter focus view", exact: true }).click();

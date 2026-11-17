@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 test("hybrid planning works offline, requires cloud consent, preserves edits on failure and never starts focus", async ({
   page,
 }) => {
@@ -10,6 +11,7 @@ test("hybrid planning works offline, requires cloud consent, preserves edits on 
     .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Plan");
   await page
     .locator("summary")
     .filter({ hasText: /^Plan tasks & deadlines$/ })
@@ -56,8 +58,10 @@ test("hybrid planning works offline, requires cloud consent, preserves edits on 
   await expect(
     page.getByRole("button", { name: "Enhance with free Qwen", exact: true }),
   ).toBeDisabled();
+  await visitWorkspace(page, "Study");
   await expect(page.getByRole("timer")).toHaveText("25:00");
   await expect(page.getByRole("button", { name: "Start focus", exact: true })).toBeVisible();
+  await visitWorkspace(page, "Plan");
   await page.getByRole("button", { name: "Save as new copy to account", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText("Sign in required.");
   await expect(

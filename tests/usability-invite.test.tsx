@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -12,7 +13,7 @@ test('literal invite prefill focuses name but never joins, creates or starts; ma
  let view=render(<App/>),q=within(view.container);
  assert.equal((q.getByLabelText('Invite code') as HTMLInputElement).value,'AB12CD');
  assert.equal(document.activeElement,q.getByLabelText('Your name'));
- assert.equal(q.queryByLabelText('Room code'),null); assert.equal(q.getByRole('timer').textContent,'25:00');
+ assert.equal(q.queryByLabelText('Room code'),null); assert.equal((visitWorkspace(q, "study"), q.getByRole('timer')).textContent,'25:00');
  assert.match(view.container.textContent!,/same device/i);
  view.unmount();dom.window.history.replaceState(null,'','/?room=ab12cd');view=render(<App/>);q=within(view.container);
  assert.equal(q.queryByLabelText('Invite code'),null);assert.match(view.container.textContent!,/invalid invite/i);

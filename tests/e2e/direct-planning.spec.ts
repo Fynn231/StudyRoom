@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 test("synthetic hosted direct planning flows from both buttons and Home preserves the reviewed plan", async ({
   page,
 }, info) => {
@@ -102,9 +103,11 @@ test("synthetic hosted direct planning flows from both buttons and Home preserve
   await page
     .getByRole("button", { name: "study room", exact: true })
     .click({ clickCount: 5, delay: 30 });
+  await visitWorkspace(page, "Study");
   await page.getByRole("button", { name: "Define protocol", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "rate-limited" })).toBeVisible();
   expect(requests).toHaveLength(2);
   await expect(page.getByRole("checkbox", { name: "Explain one idea", exact: true })).toBeChecked();
+  await visitWorkspace(page, "Study");
   await expect(page.getByRole("timer")).toHaveText("25:00");
 });

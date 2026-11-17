@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { visitWorkspace } from "./workspace-visit.js";
 // Synthetic Spotify adapter/UI proof only; never real provider/audio verification.
 test("Spotify has one main control, opens consent directly, and plays a newly selected playlist", async ({
   page,
@@ -83,6 +84,7 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
     .getByRole("button", { name: /^Continue (?:to Study Room|last session)$/, exact: true })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await visitWorkspace(page, "Music");
   await page
     .locator("summary")
     .filter({ hasText: /^Music$/ })
@@ -102,7 +104,7 @@ test("Spotify has one main control, opens consent directly, and plays a newly se
   const consent = await opened;
   await expect(consent).toHaveURL(/accounts.spotify.com\/authorize/);
   await expect(consent.locator("body")).toContainText("Synthetic consent fixture");
-  await expect(page).toHaveURL("http://127.0.0.1:4285/");
+  await expect(page).toHaveURL("http://127.0.0.1:4285/?view=music");
   await consent.close();
   authorized = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));

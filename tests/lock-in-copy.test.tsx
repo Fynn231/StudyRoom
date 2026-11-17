@@ -1,3 +1,4 @@
+import { visitWorkspace } from "./workspace-navigation-helpers.js";
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
@@ -19,8 +20,8 @@ test('normal language is unchanged and the title names Study Room', async t => {
   assert.equal(v.dom.window.document.title, 'Study Room — focus together');
   assert.equal(v.q.getByRole('button', { name: 'study room' }).textContent, 'study room.');
   assert.equal(v.container.querySelector('h1')!.textContent, 'One thing at a time.');
-  assert.equal(v.q.getByRole('button', { name: 'Start focus' }).getAttribute('data-action'), 'start');
-  assert.equal(v.q.getByRole('button', { name: 'Party' }).textContent, 'Party');
+  assert.equal((visitWorkspace(v.q, "study"), v.q.getByRole('button', { name: 'Start focus' })).getAttribute('data-action'), 'start');
+  assert.equal((visitWorkspace(v.q, "together"), v.q.getByRole('button', { name: 'Party' })).textContent, 'Party');
 });
 
 test('locked mode centralizes title, brand, headings, controls and panel names', async t => {
@@ -30,7 +31,7 @@ test('locked mode centralizes title, brand, headings, controls and panel names',
   assert.equal(v.dom.window.document.title, 'LOCKED IN — focus protocol');
   assert.match(v.q.getByRole('button', { name: 'LOCKED IN' }).textContent!, /^LOCKED IN\.$/);
   assert.equal(v.container.querySelector('h1')!.textContent, 'Eliminate distractions.');
-  assert.equal(v.q.getByRole('button', { name: 'Unit' }).textContent, 'Unit');
+  assert.equal((visitWorkspace(v.q, "together"), v.q.getByRole('button', { name: 'Unit' })).textContent, 'Unit');
   assert.equal(v.container.querySelector('.focus-top h2')!.textContent, 'Primary Directive');
   assert.equal(v.container.querySelector('.focus-top [role="status"]')!.textContent, 'Awaiting initiation');
   const primary = v.container.querySelector('[data-action="start"]')!;
@@ -50,14 +51,14 @@ test('leaving locked mode restores the normal language and title', async t => {
   for(let i=0;i<5;i++) v.fireEvent.keyDown(v.dom.window.document,{key:'n'});
   assert.equal(v.dom.window.document.title, 'Study Room — focus together');
   assert.equal(v.container.querySelector('h1')!.textContent, 'One thing at a time.');
-  assert.equal(v.q.getByRole('button', { name: 'Start focus' }).textContent, 'Start focus');
+  assert.equal((visitWorkspace(v.q, "study"), v.q.getByRole('button', { name: 'Start focus' })).textContent, 'Start focus');
   assert.equal(v.container.querySelector('.focus-top h2')!.textContent, 'Personal focus');
 });
 
 test('starting a focus cycle announces the locked status copy via a live region', async t => {
   const v = await setup(t);
   v.fireEvent.change(v.q.getByLabelText('Your session intention'), { target: { value: 'Hold the line' } });
-  v.fireEvent.click(v.q.getByRole('button', { name: 'Start focus' }));
+  v.fireEvent.click((visitWorkspace(v.q, "study"), v.q.getByRole('button', { name: 'Start focus' })));
   for (let i = 0; i < 5; i++) v.fireEvent.keyDown(v.dom.window.document, { key: 'l' });
   const status = v.container.querySelector('.focus-top [role="status"]')!;
   assert.equal(status.getAttribute('aria-live'), 'polite');
