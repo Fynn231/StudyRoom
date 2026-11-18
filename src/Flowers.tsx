@@ -1,4 +1,4 @@
-import { memo, useRef, type CSSProperties } from "react";
+import { memo, useId, useRef, type CSSProperties } from "react";
 import type { FlowerEffect } from "./Appearance.js";
 import { cuppedPetalFaces, useNaturalMotion } from "./naturalMotion.js";
 
@@ -13,6 +13,11 @@ const SCATTER: Array<[number, number]> = Array.from({ length: NORMAL_SCENERY_COU
 });
 
 const CUPPED = SCATTER.slice(0, 48).map((_, i) => cuppedPetalFaces(i));
+
+// Original five-point silhouette: softened tips alternate with deep, rounded valleys.
+// Keep this artwork independent of the existing placement and motion owner.
+const MOON_STAR =
+  "M19.1 3.9 Q20 2.1 20.9 3.9 L24.2 12.8 Q24.7 13.5 25.6 13.6 L35.4 14 Q37.2 14.5 35.8 15.8 L28.2 21.5 Q27.6 22.4 27.9 23.3 L30.6 32.8 Q30.6 34.7 29 33.7 L20.9 28.2 Q20 27.8 19.1 28.2 L11 33.7 Q9.4 34.7 9.4 32.8 L12.1 23.3 Q12.4 22.4 11.8 21.5 L4.2 15.8 Q2.8 14.5 4.6 14 L14.4 13.6 Q15.3 13.5 15.8 12.8 Z";
 
 // Star positions for the Moon atmosphere (used only when kind === 'moon')
 const STARS: Array<{ x: number; y: number; s: number }> = [
@@ -50,6 +55,7 @@ export const Flowers = memo(function Flowers({
   suspended?: boolean;
 }) {
   const layer = useRef<HTMLDivElement>(null);
+  const moonId = useId();
   const kind = effect.startsWith("moon-")
     ? "moon"
     : effect.startsWith("leaves-")
@@ -84,10 +90,11 @@ export const Flowers = memo(function Flowers({
             }
           >
             <path
-              d="M0,-1 L1,0 L0,0.7 L-1,0 L0,-0.7 Z"
+              d={MOON_STAR}
+              transform="scale(.055) translate(-20 -20)"
               fill="var(--c)"
               stroke="#67818f"
-              strokeWidth="0.2"
+              strokeWidth="1"
             />
           </svg>
         ))}
@@ -134,15 +141,50 @@ export const Flowers = memo(function Flowers({
             </>
           ) : kind === "moon" ? (
             <>
+              <defs>
+                <linearGradient
+                  id={`${moonId}-moon-${i}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1="10"
+                  y1="7"
+                  x2="29"
+                  y2="34"
+                >
+                  <stop offset="0" stopColor="#fffbee" />
+                  <stop
+                    offset=".38"
+                    stopColor={Math.floor(i / 2) % 4 === 0 ? "#f6df9d" : "#edf4ef"}
+                  />
+                  <stop
+                    offset=".72"
+                    stopColor={Math.floor(i / 2) % 4 === 0 ? "#dfc482" : "#c7d8d8"}
+                  />
+                  <stop
+                    offset="1"
+                    stopColor={Math.floor(i / 2) % 4 === 0 ? "#b39b64" : "#8faab7"}
+                  />
+                </linearGradient>
+              </defs>
               <path
-                d={
-                  Math.floor(i / 2) % 4 === 0
-                    ? "M29 4C9 0 0 22 16 33C24 39 34 34 37 27C16 32 10 13 29 4Z"
-                    : "M20 3L24 15L37 20L24 24L20 37L16 24L3 20L16 16Z"
-                }
-                fill={Math.floor(i / 2) % 4 === 0 ? "#f6df9d" : "#edf4ef"}
+                d={MOON_STAR}
+                fill={`url(#${moonId}-moon-${i})`}
                 stroke="#67818f"
-                strokeWidth="1"
+                strokeWidth=".7"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M20 19.5 L27.1 22.6 L29.3 32.2 L20 26.6 L10.7 32.2 L13.2 22.6 Z"
+                fill={Math.floor(i / 2) % 4 === 0 ? "#a58d57" : "#7898a7"}
+                opacity=".22"
+              />
+              <path
+                d="M5.4 14.9 L14.7 14.5 Q15.9 14.3 16.5 13.2 L20 4.8 L23.6 13.8"
+                fill="none"
+                stroke="#fffdf0"
+                strokeWidth=".85"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity=".85"
               />
             </>
           ) : (
